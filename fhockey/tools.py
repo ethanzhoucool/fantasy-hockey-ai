@@ -81,12 +81,15 @@ def pending_offers(client, team_id, cur, now_ms, names=None, back=3):
                 continue
             seen.add(t.get("id"))
             partner = next((x for x in (i.get("toTeamId") if i.get("fromTeamId") == team_id else i.get("fromTeamId")
-                                        for i in it) if x != team_id), None)
+                                        for i in it if i.get("type") != "DROP") if x and x != team_id), None)
             offers.append({
                 "id": t.get("id"), "mine": t.get("teamId") == team_id, "partner": partner,
                 "expires": t.get("expirationDate"), "sp": sp,
-                "give": [names.get(i["playerId"], i["playerId"]) for i in it if i.get("fromTeamId") == team_id],
+                "give": [names.get(i["playerId"], i["playerId"]) for i in it
+                         if i.get("fromTeamId") == team_id and i.get("type") != "DROP"],
                 "get": [names.get(i["playerId"], i["playerId"]) for i in it if i.get("toTeamId") == team_id],
+                "drop": [names.get(i["playerId"], i["playerId"]) for i in it
+                         if i.get("fromTeamId") == team_id and i.get("type") == "DROP"],
             })
     return offers
 
@@ -101,11 +104,12 @@ def offers_report(client, team_id, now_ms):
         exp = dt.datetime.fromtimestamp(o["expires"] / 1000).strftime("%m/%d %H:%M") if o["expires"] else "?"
         lines.append(f"{o['id']}: {'MY OFFER to' if o['mine'] else 'OFFER TO ME from'} {teams.get(o['partner'], o['partner'])}"
                      f" (team {o['partner']}) | I give {' + '.join(map(str, o['give']))} | I get {' + '.join(map(str, o['get']))}"
-                     f" | expires {exp}")
+                     + (f" | I drop {' + '.join(map(str, o['drop']))}" if o["drop"] else "")
+                     + f" | expires {exp}")
     return "\n".join(lines), offers
 
 
-def trade_input(client, team_id, now_ms, offer_id=None, partner=None, give=(), get=()):
+def trade_input(client, team_id, now_ms, offer_id=None, partner=None, give=(), get=(), drops=()):
     """trade_eval.py input (MINE/THEIRS/GIVE/GET/FA lines) for a pending offer or a hypothetical deal."""
     league, rosters, names = league_rosters(client)
     cur = league["scoringPeriodId"]
@@ -114,14 +118,14 @@ def trade_input(client, team_id, now_ms, offer_id=None, partner=None, give=(), g
         o = next((x for x in offers if str(x["id"]) == str(offer_id)), None)
         if not o:
             raise ValueError(f"no pending offer {offer_id}")
-        partner, give, get = o["partner"], o["give"], o["get"]
+        partner, give, get, drops = o["partner"], o["give"], o["get"], o["drop"]
     if partner is None:
         raise ValueError("need --offer or --partner")
     fa = client.players({"filterStatus": {"value": ["FREEAGENT"]}, "filterSlotIds": {"value": [3, 4]}, "limit": 8,
                          "sortPercOwned": {"sortPriority": 1, "sortAsc": False}}, cur)
     out = [f"MINE|{n}|{p}|{i}" for n, p, i in rosters.get(team_id, [])]
     out += [f"THEIRS|{n}|{p}|{i}" for n, p, i in rosters.get(int(partner), [])]
-    out += [f"GIVE|{n}" for n in give] + [f"GET|{n}" for n in get]
+    out += [f"GIVE|{n}" for n in give] + [f"GET|{n}" for n in get] + [f"DROP|{n}" for n in drops]
     out += [f"FA|{x['player']['fullName']}|{_trade_pos(x['player'])}" for x in fa.get("players") or []]
     return "\n".join(out) + "\n"
 

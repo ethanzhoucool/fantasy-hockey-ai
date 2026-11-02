@@ -5,6 +5,7 @@ Input file, one line per item (pos = F, D or G; inj = blank, DTD, OUT, IR, or a 
   THEIRS|name|pos|inj      every player on the partner's roster (optional; enables the partner's side)
   GIVE|name                players Ethan sends
   GET|name                 players Ethan receives
+  DROP|name                Ethan's named drop on an uneven trade (leaves his roster, partner doesn't get him)
   FA|name|pos              best free agents (optional; used to refill a roster that ends up short)
 Prints the season-sim gain (regular season | playoffs), P(trade helps), the partner's gain, and a verdict.
 Usage: python3 -I trade_eval.py trade.txt"""
@@ -123,12 +124,13 @@ mine = [player(r[1], r[2], r[3] if len(r) > 3 else "") for r in rows if r[0] == 
 theirs = [player(r[1], r[2], r[3] if len(r) > 3 else "") for r in rows if r[0] == "THEIRS"]
 fa = [player(r[1], r[2]) for r in rows if r[0] == "FA"]
 give = {r[1] for r in rows if r[0] == "GIVE"}
+drop = {r[1] for r in rows if r[0] == "DROP"}
 get = {r[1] for r in rows if r[0] == "GET"}
-missing = (give - {p["n"] for p in mine}) | (get - {p["n"] for p in theirs} if theirs else set())
+missing = ((give | drop) - {p["n"] for p in mine}) | (get - {p["n"] for p in theirs} if theirs else set())
 if missing: sys.exit(f"names not found on the rosters: {sorted(missing)}")
 get_p = [p for p in theirs if p["n"] in get] if theirs else [player(n, "F") for n in get]
 
-def after_me(m, gp): return fit([p for p in m if p["n"] not in give] + gp, fa)
+def after_me(m, gp): return fit([p for p in m if p["n"] not in give | drop] + gp, fa)
 base, new = season(mine), season(after_me(mine, get_p))
 reg, po = new[0] - base[0], new[1] - base[1]
 
@@ -144,6 +146,7 @@ for _ in range(N):
 pwin = wins / N
 
 print("GIVE " + ", ".join(f"{p['n']} {p['v']:.2f}" for p in mine if p["n"] in give))
+if drop: print("DROP " + ", ".join(f"{p['n']} {p['v']:.2f}" for p in mine if p["n"] in drop))
 print("GET  " + ", ".join(f"{p['n']} {p['v']:.2f}" for p in get_p))
 print(f"me: reg {reg:+.1f} | playoffs {po:+.1f} | P(helps) {pwin:.0%}")
 if theirs:

@@ -32,6 +32,8 @@ DEFAULTS = {
     "model_data_dir": "",  # NHL stats for model/project.py; default <repo>/model/data
     "trades_dir": "",  # where `snapshot` writes league_<date>.txt; default <repo>/trades
     "watch_player_ids": [],  # extra players to watch for WAIVERS -> FREEAGENT
+    # pre-approved adds run once as the day's free-agent add: [{"add": id, "drop": id, "from_sp": n, "note": ""}]
+    "planned_moves": [],
     "value_overrides": {"Aleksander Barkov": 2.0},  # from bot.js: missed last season, elite when healthy
     "rules": {
         "min_edge": 0.25,

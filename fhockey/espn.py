@@ -11,6 +11,7 @@ The API is undocumented and can change without notice.
 import json
 import os
 import socket
+import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -137,11 +138,33 @@ class WritesDisabled(EspnError):
 # ---------------------------------------------------------------- transport
 
 
+_SSL = None
+
+
+def https_context():
+    """Default TLS context, falling back to the macOS system bundle when Python has no CA certificates
+    (python.org installers ship without them until 'Install Certificates.command' is run)."""
+    global _SSL
+    if _SSL is None:
+        _SSL = ssl.create_default_context()
+        paths = ssl.get_default_verify_paths()
+        if not (paths.cafile or paths.capath) or not _SSL.get_ca_certs():
+            for bundle in ("/etc/ssl/cert.pem", "/usr/local/etc/openssl/cert.pem", "/opt/homebrew/etc/openssl@3/cert.pem"):
+                if os.path.exists(bundle):
+                    _SSL.load_verify_locations(cafile=bundle)
+                    break
+    return _SSL
+
+
+def urlopen(req, timeout=25):
+    return urllib.request.urlopen(req, timeout=timeout, context=https_context())
+
+
 def urllib_transport(method, url, headers, body=None, timeout=25):
     """Returns (status, body bytes). Raises TransientError on network failures."""
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urlopen(req, timeout=timeout) as r:
             return r.status, r.read()
     except urllib.error.HTTPError as e:
         try:

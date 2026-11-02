@@ -14,12 +14,14 @@ from .players import OUT, SLOT
 
 
 def days_left_in_week(matchup_periods, current_mp, sp, weekday=None):
-    """Scoring days left in the matchup week, today included. Uses mSettings scheduleSettings.matchupPeriods;
-    falls back to a Monday-Sunday week (weekday: Monday=0)."""
+    """Scoring days left in the matchup week, today included (weekday: Monday=0).
+    mSettings scheduleSettings.matchupPeriods maps a matchup to scoring periods in some leagues, but in ESPN
+    hockey it maps to week numbers ({"6": [6], "24": [24, 25]}). Week lists use a Monday-Sunday week, and a
+    multi-week matchup counts as if today were in its first week, which keeps the reserve add longer."""
     sps = (matchup_periods or {}).get(str(current_mp)) or (matchup_periods or {}).get(current_mp)
-    if sps:
+    if sps and len(sps) >= 3:
         return sum(1 for s in sps if s >= sp)
-    return 7 - (weekday or 0)
+    return 7 - (weekday or 0) + 7 * (len(sps or [1]) - 1)
 
 
 def plan(ros, lineup_res, fas, budget, scfg, rules, now_ms, sp, streamed_today=(), days_left=7):

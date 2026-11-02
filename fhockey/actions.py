@@ -103,3 +103,54 @@ def run_stream(view, execute, state=None):
     state.setdefault("stream_adds", {})[str(plan["add"]["id"])] = view.cur
     state["fa_add_sp"] = view.cur
     return {"line": S.describe(plan, abbrev), "ok": True, "executed": True, "plan": plan}
+
+
+def run_planned(view, execute, plans, state):
+    """Moves approved ahead of time, from config "planned_moves": [{"add": id, "drop": id, "from_sp": n}].
+    Each one runs once, as that day's free-agent add, on or after scoring period from_sp and only while the add is
+    a free agent. It waits (and retries every poll) while he is on waivers, the day's add is used, the week is full
+    or the drop is in a pending trade; it is retired if the add is gone to another team or the drop has left."""
+    done = state.setdefault("planned_done", {})
+    rules = view.cfg["rules"]
+    lines, executed = [], []
+    for m in plans or []:
+        add_id, drop_id = int(m["add"]), int(m["drop"])
+        key = f"{add_id}:{drop_id}"
+        if key in done or view.cur < int(m.get("from_sp") or 0):
+            continue
+        mine = {p["id"]: p for p in view.roster()}
+        x = next(iter(view.client.players_by_id([add_id], view.cur).get("players") or []), {})
+        name, status = (x.get("player") or {}).get("fullName", str(add_id)), x.get("status")
+        drop = mine.get(drop_id)
+        if add_id in mine:
+            done[key] = "already on roster"
+            continue
+        if status not in ("FREEAGENT", "WAIVERS") or not drop:
+            done[key] = f"retired: {name} is {status}" if drop else "retired: drop left the roster"
+            lines.append(f"planned move cancelled: +{name} ({done[key]})")
+            continue
+        budget = view.budget()
+        wait = [why for bad, why in (
+            (status == "WAIVERS", f"{name} still on waivers"),
+            (budget.fa_adds_this_period >= rules["fa_adds_per_period"], "today's free-agent add already used"),
+            (budget.committed + 1 > rules["weekly_add_limit"], "weekly add limit reached"),
+            (drop_id in budget.pending_trade_ids, f"{drop['n']} is in a pending trade"),
+        ) if bad]
+        desc = f"+{name} -{drop['n']}"
+        if wait:
+            lines.append(f"planned move waiting ({desc}): {'; '.join(wait)}")
+            continue
+        if not execute:
+            lines.append(f"planned move (dry run): would add {desc}")
+            continue
+        try:
+            view.client.add_free_agent(add_id, drop_id, view.cur)
+        except EspnError as e:
+            lines.append(f"planned move FAILED ({desc}): {e}")
+            continue
+        done[key] = f"added in period {view.cur}"
+        state["fa_add_sp"] = view.cur
+        executed.append(m)
+        lines.append(f"planned move: ADDED {desc}" + (f" ({m['note']})" if m.get("note") else ""))
+        break  # one free-agent add per day
+    return {"lines": lines, "executed": executed}

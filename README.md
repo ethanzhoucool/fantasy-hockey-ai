@@ -167,6 +167,12 @@ weight `gp / (gp + 25)` on this season.
   Players without a game today are dropped first.
 - then the lineup is re-run so the streamer starts
 
+**Planned moves** (`planned_moves` in config.json). An add/drop you approved ahead of time, e.g. a player
+who clears waivers after today's add is used: `{"add": <playerId>, "drop": <playerId>, "from_sp": <period>}`.
+It runs once, before pickups and streaming, as that day's free-agent add. It waits while the add is still on
+waivers, the day's add is used, the week is full or the drop is in a pending trade, and is cancelled if the
+add joins another team or the drop leaves your roster.
+
 All thresholds live under `rules` and `stream` in config.json (see `config.example.json`).
 
 ## Claude hook (opt-in, off by default)
@@ -201,18 +207,19 @@ which is pushed to you. Limits:
 
 ## What is tested, and what is not
 
-`python3 -m unittest` (92 tests) runs against hand-built fixtures shaped like ESPN responses (`tests/fixtures/`):
+`python3 -m unittest` (100 tests) runs against hand-built fixtures shaped like ESPN responses (`tests/fixtures/`):
 lineup optimization, every pickup rule rejecting, weekly-limit math, streaming budget/reserve, drop eligibility
 and game-time cutoff, drop detection and dedupe, waiver-clear detection, trade/chat/injury detection, lineup
 timing, the Claude hook's rate limit and lock, notifications, the launchd plist, the snapshot format, and that
 no command leaks a cookie.
 
-Not verified against live ESPN (no cookies were available while building this):
+Verified against a live league (Nov 2 2026): every read the service makes, a `FUTURE_ROSTER` lineup save, and
+pending-trade parsing (including the named `DROP` item on uneven trades). In ESPN hockey,
+`scheduleSettings.matchupPeriods` maps matchups to week numbers, not scoring days, so the service uses a
+Monday-Sunday week. Still not confirmed live: the free-agent add payload from Python (the same JSON already
+worked from the browser) and **`WAIVER` claims**, which were never confirmed to succeed anywhere.
 
-- the write payloads for lineup (`ROSTER` / `FUTURE_ROSTER`), free-agent adds and **`WAIVER` claims**
-  (ported from the browser scripts; the waiver claim was never confirmed to succeed);
-- the combined `mStatus+mRoster+mTeam&forTeamId=` read, and the exact shape of the chat endpoint's response;
-- `mSettings` `scheduleSettings.matchupPeriods` (falls back to a Monday-Sunday week).
+python.org builds of Python ship without CA certificates; the client falls back to `/etc/ssl/cert.pem` on macOS.
 
 Run `status`, `lineup --dry-run`, `pickups --dry-run` and `watch --once` against your league before turning on writes.
 

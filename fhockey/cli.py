@@ -13,6 +13,7 @@ from pathlib import Path
 from . import actions, claude_hook, launchd, tools
 from .config import Config, ConfigError
 from .espn import AuthError, EspnClient, EspnError, load_auth, save_auth, scrub
+from .espn import urlopen as espn_urlopen
 from .league import LeagueView
 from .notify import Notifier, get_logger
 from .players import INJ_SHORT, SLOT_NAME
@@ -37,7 +38,7 @@ class Deps:
         self.now = now
         self.runner = runner or subprocess.run
         self.spawn = spawn or subprocess.Popen
-        self.opener = opener or urllib.request.urlopen
+        self.opener = opener or espn_urlopen
         self.cfg = cfg
 
 
@@ -219,7 +220,7 @@ def cmd_offers(cfg, args, deps):
 def cmd_trade_input(cfg, args, deps):
     split = lambda s: [x.strip() for x in (s or "").split(",") if x.strip()]
     text = tools.trade_input(_client(cfg, deps), cfg.team_id, _now(deps), offer_id=args.offer, partner=args.partner,
-                             give=split(args.give), get=split(args.get))
+                             give=split(args.give), get=split(args.get), drops=split(args.drop))
     if args.out:
         Path(args.out).write_text(text)
         print(f"wrote {args.out}; next: python3 -I model/trade_eval.py {args.out}")
@@ -282,6 +283,7 @@ def build_parser():
     t.add_argument("--partner", type=int)
     t.add_argument("--give", help="comma-separated names you send")
     t.add_argument("--get", help="comma-separated names you receive")
+    t.add_argument("--drop", help="comma-separated names you drop to make roster room (uneven trades)")
     t.add_argument("--out")
     c = sub.add_parser("chat", help="recent chat threads")
     c.add_argument("--hours", type=float, default=24)

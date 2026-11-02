@@ -87,6 +87,10 @@ class StreamPlanTest(unittest.TestCase):
         self.assertEqual(days_left_in_week(mps, 5, 34), 3)
         self.assertEqual(days_left_in_week(mps, 5, 36), 1)
         self.assertEqual(days_left_in_week({}, 5, 34, weekday=5), 2)  # Saturday, Monday-Sunday fallback
+        # ESPN hockey maps matchups to week numbers, not scoring periods
+        self.assertEqual(days_left_in_week({"6": [6]}, 6, 35, weekday=0), 7)
+        self.assertEqual(days_left_in_week({"6": [6]}, 6, 40, weekday=5), 2)
+        self.assertEqual(days_left_in_week({"24": [24, 25]}, 24, 150, weekday=6), 8)
 
     # ---- game-start cutoff and add eligibility
     def test_game_start_cutoff(self):

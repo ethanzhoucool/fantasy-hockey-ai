@@ -74,12 +74,14 @@ def find_offers(transactions, team_id):
         if not any(i.get("fromTeamId") == team_id or i.get("toTeamId") == team_id for i in it):
             continue
         partner = next((x for x in (i.get("toTeamId") if i.get("fromTeamId") == team_id else i.get("fromTeamId")
-                                    for i in it) if x != team_id), None)
+                                    for i in it if i.get("type") != "DROP") if x and x != team_id), None)
         out[str(t.get("id"))] = {
             "status": t.get("status"), "mine": t.get("teamId") == team_id, "partner": partner,
             "expires": t.get("expirationDate"), "sp": t.get("scoringPeriodId") or t.get("_sp"),
-            "give": [i["playerId"] for i in it if i.get("fromTeamId") == team_id],
+            "give": [i["playerId"] for i in it if i.get("fromTeamId") == team_id and i.get("type") != "DROP"],
             "get": [i["playerId"] for i in it if i.get("toTeamId") == team_id],
+            # uneven trades name a drop (type DROP, toTeamId 0) for each side that ends up over the roster limit
+            "drop": [i["playerId"] for i in it if i.get("fromTeamId") == team_id and i.get("type") == "DROP"],
         }
     return out
 
@@ -325,7 +327,7 @@ class Watcher:
         received, updates = diff_offers(offers_known, current, now)
         if received or updates:
             ids = {pid for _, o in received for pid in o["give"] + o["get"]} | \
-                  {pid for _, _, o in updates for pid in o["give"] + o["get"]}
+                  {pid for _, _, o in updates for pid in o["give"] + o["get"] + o.get("drop", [])}
             names = {x["id"]: (x.get("player") or {}).get("fullName", str(x["id"]))
                      for x in self.client.players_by_id(sorted(ids), sp).get("players") or []}
             nm = lambda ids_: " + ".join(names.get(i, str(i)) for i in ids_) or "nothing"
@@ -338,7 +340,8 @@ class Watcher:
                                               "get_names": [names.get(i) for i in o["get"]], "detected": now})
             for oid, old, o in updates:
                 who = "your offer to" if o["mine"] else "offer from"
-                self.note("trade", f"{who} {view.team_name(o['partner'])} ({nm(o['give'])} for {nm(o['get'])}): "
+                dropped = f", you drop {nm(o['drop'])}" if o.get("drop") else ""
+                self.note("trade", f"{who} {view.team_name(o['partner'])} ({nm(o['give'])} for {nm(o['get'])}{dropped}): "
                                    f"{old} -> {o['status']}")
                 if o["status"] in ("EXECUTED", "ACCEPTED"):
                     st["lineup_dirty"] = True
@@ -374,9 +377,23 @@ class Watcher:
                 self.note("model", f"projection refresh failed, using old values: {msg}", priority="low")
             view.proj = Projections.load(cfg.proj_path)
 
-        # 5. pickups: right after a drop / waiver clear, and once each morning
-        morning_due = local.hour >= cfg["morning_hour"] and not daily.get("morning")
+        # 5a. moves approved ahead of time (config "planned_moves"): first claim on the day's free-agent add
         roster_changed = False
+        if cfg["planned_moves"]:
+            res = actions.run_planned(view, execute, cfg["planned_moves"], st)
+            sent = daily.setdefault("planned_msgs", [])
+            for line in res["lines"]:
+                if line not in sent:
+                    sent.append(line)
+                    self.note("pickup", line, priority="high" if res["executed"] or "FAILED" in line else "low",
+                              push="waiting" not in line)
+            if res["executed"]:
+                roster_changed = True
+                daily["fa_planned"] = True
+                view = LeagueView(self.client, cfg, now, st, proj=view.proj, schedule=view.schedule).load()
+
+        # 5b. pickups: right after a drop / waiver clear, and once each morning
+        morning_due = local.hour >= cfg["morning_hour"] and not daily.get("morning")
         if trigger or morning_due:
             extra = sorted(set(trigger) | {int(k) for k in watched})
             res = actions.run_pickups(view, execute, extra, st)

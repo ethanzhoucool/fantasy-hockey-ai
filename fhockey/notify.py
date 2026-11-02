@@ -13,6 +13,7 @@ import urllib.request
 from logging.handlers import RotatingFileHandler
 
 from .espn import scrub
+from .espn import urlopen as espn_urlopen
 
 PRIORITY = {"min": 1, "low": 2, "default": 3, "high": 4, "urgent": 5}
 
@@ -38,7 +39,7 @@ def get_logger(cfg):
 
 
 class Notifier:
-    def __init__(self, cfg, runner=subprocess.run, opener=urllib.request.urlopen, echo=False):
+    def __init__(self, cfg, runner=subprocess.run, opener=espn_urlopen, echo=False):
         self.cfg = cfg
         self.runner = runner
         self.opener = opener

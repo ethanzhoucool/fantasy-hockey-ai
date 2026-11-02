@@ -16,6 +16,7 @@
   "model_data_dir": "",
   "trades_dir": "",
   "watch_player_ids": [],
+  "planned_moves": [],
   "value_overrides": {
     "Aleksander Barkov": 2.0
   },
