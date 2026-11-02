@@ -133,3 +133,5 @@ where the owner can see the changes.
   on an approval prompt. Added `planned_moves` so the service makes pre-approved moves itself at rollover.
 - 2026-11-02: Going live found three bugs that 92 offline tests missed (CA certs, week numbers, DROP items).
   Test new API assumptions against the live league with a read or a harmless write before trusting them.
+- 2026-11-02: Cancelled and declined offers still read PENDING: ESPN records each answer as a new record
+  (`relatedTransactionId` -> proposal). The service now reads those; `view=mPendingTransactions` is the live list.

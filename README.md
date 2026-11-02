@@ -209,14 +209,15 @@ which is pushed to you. Limits:
 
 ## What is tested, and what is not
 
-`python3 -m unittest` (100 tests) runs against hand-built fixtures shaped like ESPN responses (`tests/fixtures/`):
+`python3 -m unittest` (104 tests) runs against hand-built fixtures shaped like ESPN responses (`tests/fixtures/`):
 lineup optimization, every pickup rule rejecting, weekly-limit math, streaming budget/reserve, drop eligibility
 and game-time cutoff, drop detection and dedupe, waiver-clear detection, trade/chat/injury detection, lineup
 timing, the Claude hook's rate limit and lock, notifications, the launchd plist, the snapshot format, and that
 no command leaks a cookie.
 
 Verified against a live league (Nov 2 2026): every read the service makes, a `FUTURE_ROSTER` lineup save, and
-pending-trade parsing (including the named `DROP` item on uneven trades). In ESPN hockey,
+pending-trade parsing (including the named `DROP` item on uneven trades). ESPN never changes a trade proposal's own status: an accept, decline or cancel is a
+new record whose `relatedTransactionId` points at the proposal, and the service reads the status from those. In ESPN hockey,
 `scheduleSettings.matchupPeriods` maps matchups to week numbers, not scoring days, so the service uses a
 Monday-Sunday week. Still not confirmed live: the free-agent add payload from Python (the same JSON already
 worked from the browser) and **`WAIVER` claims**, which were never confirmed to succeed anywhere.

@@ -22,7 +22,7 @@ from . import actions
 from . import claude_hook
 from .config import REPO_ROOT
 from .espn import AuthError, EspnError, scrub
-from .league import TERMINAL_TRADE, LeagueView
+from .league import TERMINAL_TRADE, LeagueView, trade_outcomes, trade_status
 from .players import OUT, INJ_SHORT, Projections, position
 from .state import FileLock, load_state, save_state
 
@@ -65,10 +65,10 @@ def find_drops(transactions, team_id, seen, since_ms):
 
 
 def find_offers(transactions, team_id):
-    """TRADE_PROPOSALs involving team_id, keyed by transaction id (as str)."""
-    out = {}
+    """TRADE_PROPOSALs involving team_id, keyed by transaction id (as str), with the status their answers give them."""
+    out, outcomes = {}, trade_outcomes(transactions)
     for t in transactions:
-        if t.get("type") != "TRADE_PROPOSAL":
+        if t.get("type") != "TRADE_PROPOSAL" or t.get("relatedTransactionId"):
             continue
         it = t.get("items") or []
         if not any(i.get("fromTeamId") == team_id or i.get("toTeamId") == team_id for i in it):
@@ -76,7 +76,7 @@ def find_offers(transactions, team_id):
         partner = next((x for x in (i.get("toTeamId") if i.get("fromTeamId") == team_id else i.get("fromTeamId")
                                     for i in it if i.get("type") != "DROP") if x and x != team_id), None)
         out[str(t.get("id"))] = {
-            "status": t.get("status"), "mine": t.get("teamId") == team_id, "partner": partner,
+            "status": trade_status(t, outcomes), "mine": t.get("teamId") == team_id, "partner": partner,
             "expires": t.get("expirationDate"), "sp": t.get("scoringPeriodId") or t.get("_sp"),
             "give": [i["playerId"] for i in it if i.get("fromTeamId") == team_id and i.get("type") != "DROP"],
             "get": [i["playerId"] for i in it if i.get("toTeamId") == team_id],

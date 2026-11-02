@@ -6,6 +6,34 @@ from .state import read_json, write_json
 
 TERMINAL_TRADE = {"CANCELED", "CANCELLED", "DECLINED", "REJECTED", "VETOED", "EXECUTED", "FAILED", "EXPIRED"}
 DAY_MS = 86_400_000
+# ESPN never updates a proposal's own record: it stays PENDING. Each answer is a new record whose
+# relatedTransactionId points at the proposal. Ranked so the final outcome wins: a decline also writes a
+# CANCELED record, and an accepted trade that falls through later gets one too.
+_OUTCOME_RANK = {"EXECUTED": 4, "DECLINED": 3, "FAILED": 3, "CANCELED": 2, "ACCEPTED": 1}
+
+
+def trade_outcomes(transactions):
+    """{proposal id: status} from the records that answer a proposal (accept, decline, cancel, process)."""
+    out = {}
+    for t in transactions:
+        rel, typ, status = t.get("relatedTransactionId"), t.get("type"), t.get("status")
+        if not rel:
+            continue
+        if typ == "TRADE_ACCEPT":
+            new = "EXECUTED" if status == "EXECUTED" else "FAILED" if status in TERMINAL_TRADE else "ACCEPTED"
+        elif typ == "TRADE_DECLINE":
+            new = "DECLINED"
+        elif typ == "TRADE_PROPOSAL" and status in ("CANCELED", "CANCELLED"):
+            new = "CANCELED"
+        else:
+            continue  # TRADE_UPHOLD / TRADE_VETO are one team's vote, not the outcome
+        if _OUTCOME_RANK[new] > _OUTCOME_RANK.get(out.get(rel), 0):
+            out[rel] = new
+    return out
+
+
+def trade_status(t, outcomes):
+    return outcomes.get(t.get("id"), t.get("status"))
 
 
 class Schedule:
@@ -186,13 +214,17 @@ class LeagueView:
         return n
 
     def pending_trades(self, back=3):
+        """Live proposals and accepted trades not yet processed that involve Ethan."""
+        txs = self.tx_range(back)
+        outcomes = trade_outcomes(txs)
         out, seen = [], set()
-        for t in self.tx_range(back):
-            if not str(t.get("type", "")).startswith("TRADE") or t.get("id") in seen:
+        for t in txs:
+            if t.get("type") != "TRADE_PROPOSAL" or t.get("relatedTransactionId") or t.get("id") in seen:
                 continue
-            if t.get("status") in TERMINAL_TRADE:
+            status = trade_status(t, outcomes)
+            if status in TERMINAL_TRADE:
                 continue
-            if t.get("expirationDate") and t["expirationDate"] < self.now:
+            if status == "PENDING" and t.get("expirationDate") and t["expirationDate"] < self.now:
                 continue
             items = t.get("items") or []
             if not any(i.get("fromTeamId") == self.team_id or i.get("toTeamId") == self.team_id for i in items):

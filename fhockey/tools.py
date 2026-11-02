@@ -2,7 +2,7 @@
 trade_eval.py input (trade_state.js), and chat threads (chat_state.js)."""
 import datetime as dt
 
-from .league import TERMINAL_TRADE, team_label
+from .league import TERMINAL_TRADE, team_label, trade_outcomes, trade_status
 from .players import INJ_SHORT, POS_BY_DEFAULT, js_round, stat
 
 SNAPSHOT_COLUMNS = "team|name|pos|inj|espnProjAvg|seasonAvg|gp|pctOwned|lastNews|playerId|status"
@@ -70,9 +70,11 @@ def pending_offers(client, team_id, cur, now_ms, names=None, back=3):
     """Pending, unexpired TRADE_PROPOSALs that involve team_id, from the last `back` scoring periods."""
     names = names or {}
     offers, seen = [], set()
-    for sp in range(max(1, cur - back), cur + 1):
-        for t in client.transactions(sp).get("transactions") or []:
-            if t.get("type") != "TRADE_PROPOSAL" or t.get("status") != "PENDING" or t.get("id") in seen:
+    by_sp = [(sp, client.transactions(sp).get("transactions") or []) for sp in range(max(1, cur - back), cur + 1)]
+    outcomes = trade_outcomes(t for _, txs in by_sp for t in txs)
+    for sp, txs in by_sp:
+        for t in txs:
+            if t.get("type") != "TRADE_PROPOSAL" or trade_status(t, outcomes) != "PENDING" or t.get("id") in seen:
                 continue
             if t.get("expirationDate") and t["expirationDate"] < now_ms:
                 continue
