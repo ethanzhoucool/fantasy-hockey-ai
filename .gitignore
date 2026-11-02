@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+
+# Model data: 23 MB of public NHL stats, rebuilt with model/bt_fetch.py + model/fetch_sched.py (see README)
+model/data/
+# Generated daily by model/project.py
+model/proj.js
+model/proj.json
+model/proj.json.tmp
+
+# League snapshots, scans and reviews contain other managers' rosters and chat: never commit
+trades/league_*.txt
+trades/scan_*.txt
+trades/robust_*.txt
+trades/candidates_*.md
+trades/review_*/
+trades/*.txt
+*chat*.md
+chat_seen.txt
+drops_seen.txt
+
+# Secrets and local state (these normally live outside the repo anyway)
+auth.json
+config.json
+state.json
+inbox/
+*.log
+
+.DS_Store

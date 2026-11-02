@@ -1,0 +1,152 @@
+{
+ "34": {
+  "transactions": [
+   {
+    "id": "tx-drop-xavi",
+    "type": "FREEAGENT",
+    "status": "EXECUTED",
+    "teamId": 2,
+    "scoringPeriodId": 34,
+    "proposedDate": 1793647200000,
+    "processDate": 1793647200000,
+    "executionType": "EXECUTE",
+    "items": [
+     {
+      "playerId": 2005,
+      "type": "ADD",
+      "fromTeamId": 0,
+      "toTeamId": 2
+     },
+     {
+      "playerId": 1402,
+      "type": "DROP",
+      "fromTeamId": 2,
+      "toTeamId": 0
+     }
+    ]
+   },
+   {
+    "id": "tx-own-lineup",
+    "type": "ROSTER",
+    "status": "EXECUTED",
+    "teamId": 4,
+    "scoringPeriodId": 34,
+    "proposedDate": 1793638800000,
+    "processDate": 1793638800000,
+    "executionType": "EXECUTE",
+    "items": [
+     {
+      "playerId": 1001,
+      "type": "LINEUP",
+      "fromLineupSlotId": 7,
+      "toLineupSlotId": 3,
+      "fromTeamId": 0,
+      "toTeamId": 0
+     }
+    ]
+   },
+   {
+    "id": "tx-offer-in",
+    "type": "TRADE_PROPOSAL",
+    "status": "PENDING",
+    "teamId": 2,
+    "scoringPeriodId": 34,
+    "proposedDate": 1793646000000,
+    "processDate": 1793646000000,
+    "executionType": "EXECUTE",
+    "items": [
+     {
+      "playerId": 1101,
+      "type": "TRADE",
+      "fromTeamId": 4,
+      "toTeamId": 2
+     },
+     {
+      "playerId": 2001,
+      "type": "TRADE",
+      "fromTeamId": 2,
+      "toTeamId": 4
+     }
+    ],
+    "expirationDate": 1793822400000
+   }
+  ]
+ },
+ "33": {
+  "transactions": [
+   {
+    "id": "tx-offer-mine",
+    "type": "TRADE_PROPOSAL",
+    "status": "PENDING",
+    "teamId": 4,
+    "scoringPeriodId": 33,
+    "proposedDate": 1793577600000,
+    "processDate": 1793577600000,
+    "executionType": "EXECUTE",
+    "items": [
+     {
+      "playerId": 1009,
+      "type": "TRADE",
+      "fromTeamId": 4,
+      "toTeamId": 5
+     },
+     {
+      "playerId": 5001,
+      "type": "TRADE",
+      "fromTeamId": 5,
+      "toTeamId": 4
+     }
+    ],
+    "expirationDate": 1793736000000
+   },
+   {
+    "id": "tx-own-fa",
+    "type": "FREEAGENT",
+    "status": "EXECUTED",
+    "teamId": 4,
+    "scoringPeriodId": 33,
+    "proposedDate": 1793577600000,
+    "processDate": 1793577600000,
+    "executionType": "EXECUTE",
+    "items": [
+     {
+      "playerId": 1104,
+      "type": "ADD",
+      "fromTeamId": 0,
+      "toTeamId": 4
+     },
+     {
+      "playerId": 9999,
+      "type": "DROP",
+      "fromTeamId": 4,
+      "toTeamId": 0
+     }
+    ]
+   },
+   {
+    "id": "tx-old-drop",
+    "type": "WAIVER",
+    "status": "EXECUTED",
+    "teamId": 3,
+    "scoringPeriodId": 33,
+    "proposedDate": 1793541600000,
+    "processDate": 1793541600000,
+    "executionType": "EXECUTE",
+    "items": [
+     {
+      "playerId": 3001,
+      "type": "ADD",
+      "fromTeamId": 0,
+      "toTeamId": 3
+     },
+     {
+      "playerId": 3002,
+      "type": "DROP",
+      "fromTeamId": 3,
+      "toTeamId": 0
+     }
+    ]
+   }
+  ]
+ }
+}

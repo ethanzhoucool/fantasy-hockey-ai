@@ -1,0 +1,316 @@
+{
+ "players": [
+  {
+   "id": 1401,
+   "status": "FREEAGENT",
+   "onTeamId": 0,
+   "player": {
+    "id": 1401,
+    "fullName": "Abe Low",
+    "proTeamId": 12,
+    "defaultPositionId": 1,
+    "eligibleSlots": [
+     3,
+     6,
+     7,
+     8
+    ],
+    "injuryStatus": "ACTIVE",
+    "injured": false,
+    "lastNewsDate": 1793556000000,
+    "ownership": {
+     "percentOwned": 40
+    },
+    "stats": [
+     {
+      "seasonId": 2027,
+      "statSourceId": 0,
+      "statSplitTypeId": 0,
+      "appliedTotal": 9.6,
+      "appliedAverage": 2.4
+     },
+     {
+      "seasonId": 2027,
+      "statSourceId": 1,
+      "statSplitTypeId": 0,
+      "appliedTotal": 164.0,
+      "appliedAverage": 2.0
+     }
+    ]
+   }
+  },
+  {
+   "id": 1402,
+   "status": "WAIVERS",
+   "onTeamId": 0,
+   "player": {
+    "id": 1402,
+    "fullName": "Xavi Xray",
+    "proTeamId": 3,
+    "defaultPositionId": 1,
+    "eligibleSlots": [
+     3,
+     6,
+     7,
+     8
+    ],
+    "injuryStatus": "ACTIVE",
+    "injured": false,
+    "lastNewsDate": 1793556000000,
+    "ownership": {
+     "percentOwned": 60
+    },
+    "stats": [
+     {
+      "seasonId": 2027,
+      "statSourceId": 0,
+      "statSplitTypeId": 0,
+      "appliedTotal": 25.2,
+      "appliedAverage": 2.1
+     },
+     {
+      "seasonId": 2027,
+      "statSourceId": 1,
+      "statSplitTypeId": 0,
+      "appliedTotal": 155.8,
+      "appliedAverage": 1.9
+     }
+    ]
+   },
+   "waiverProcessDate": 1793692800000
+  },
+  {
+   "id": 1403,
+   "status": "FREEAGENT",
+   "onTeamId": 0,
+   "player": {
+    "id": 1403,
+    "fullName": "Walt Whiskey",
+    "proTeamId": 11,
+    "defaultPositionId": 1,
+    "eligibleSlots": [
+     3,
+     6,
+     7,
+     8
+    ],
+    "injuryStatus": "ACTIVE",
+    "injured": false,
+    "lastNewsDate": 1793556000000,
+    "ownership": {
+     "percentOwned": 35
+    },
+    "stats": [
+     {
+      "seasonId": 2027,
+      "statSourceId": 0,
+      "statSplitTypeId": 0,
+      "appliedTotal": 19.0,
+      "appliedAverage": 1.9
+     },
+     {
+      "seasonId": 2027,
+      "statSourceId": 1,
+      "statSplitTypeId": 0,
+      "appliedTotal": 147.6,
+      "appliedAverage": 1.8
+     }
+    ]
+   }
+  },
+  {
+   "id": 1404,
+   "status": "FREEAGENT",
+   "onTeamId": 0,
+   "player": {
+    "id": 1404,
+    "fullName": "Zed Zulu",
+    "proTeamId": 2,
+    "defaultPositionId": 1,
+    "eligibleSlots": [
+     3,
+     6,
+     7,
+     8
+    ],
+    "injuryStatus": "DAY_TO_DAY",
+    "injured": true,
+    "lastNewsDate": 1793556000000,
+    "ownership": {
+     "percentOwned": 55
+    },
+    "stats": [
+     {
+      "seasonId": 2027,
+      "statSourceId": 0,
+      "statSplitTypeId": 0,
+      "appliedTotal": 20.7,
+      "appliedAverage": 2.3
+     },
+     {
+      "seasonId": 2027,
+      "statSourceId": 1,
+      "statSplitTypeId": 0,
+      "appliedTotal": 172.2,
+      "appliedAverage": 2.1
+     }
+    ]
+   }
+  },
+  {
+   "id": 1405,
+   "status": "FREEAGENT",
+   "onTeamId": 0,
+   "player": {
+    "id": 1405,
+    "fullName": "Yan Yankee",
+    "proTeamId": 5,
+    "defaultPositionId": 4,
+    "eligibleSlots": [
+     4,
+     6,
+     7,
+     8
+    ],
+    "injuryStatus": "ACTIVE",
+    "injured": false,
+    "lastNewsDate": 1793556000000,
+    "ownership": {
+     "percentOwned": 30
+    },
+    "stats": [
+     {
+      "seasonId": 2027,
+      "statSourceId": 0,
+      "statSplitTypeId": 0,
+      "appliedTotal": 14.4,
+      "appliedAverage": 1.8
+     },
+     {
+      "seasonId": 2027,
+      "statSourceId": 1,
+      "statSplitTypeId": 0,
+      "appliedTotal": 139.4,
+      "appliedAverage": 1.7
+     }
+    ]
+   }
+  },
+  {
+   "id": 1406,
+   "status": "FREEAGENT",
+   "onTeamId": 0,
+   "player": {
+    "id": 1406,
+    "fullName": "Bo Stream",
+    "proTeamId": 7,
+    "defaultPositionId": 1,
+    "eligibleSlots": [
+     3,
+     6,
+     7,
+     8
+    ],
+    "injuryStatus": "ACTIVE",
+    "injured": false,
+    "lastNewsDate": 1793556000000,
+    "ownership": {
+     "percentOwned": 25
+    },
+    "stats": [
+     {
+      "seasonId": 2027,
+      "statSourceId": 0,
+      "statSplitTypeId": 0,
+      "appliedTotal": 24.0,
+      "appliedAverage": 1.6
+     },
+     {
+      "seasonId": 2027,
+      "statSourceId": 1,
+      "statSplitTypeId": 0,
+      "appliedTotal": 127.1,
+      "appliedAverage": 1.55
+     }
+    ]
+   }
+  },
+  {
+   "id": 1407,
+   "status": "FREEAGENT",
+   "onTeamId": 0,
+   "player": {
+    "id": 1407,
+    "fullName": "Cy Goalie",
+    "proTeamId": 9,
+    "defaultPositionId": 5,
+    "eligibleSlots": [
+     5,
+     7,
+     8
+    ],
+    "injuryStatus": "ACTIVE",
+    "injured": false,
+    "lastNewsDate": 1793556000000,
+    "ownership": {
+     "percentOwned": 20
+    },
+    "stats": [
+     {
+      "seasonId": 2027,
+      "statSourceId": 0,
+      "statSplitTypeId": 0,
+      "appliedTotal": 10.0,
+      "appliedAverage": 2.0
+     },
+     {
+      "seasonId": 2027,
+      "statSourceId": 1,
+      "statSplitTypeId": 0,
+      "appliedTotal": 205.0,
+      "appliedAverage": 2.5
+     }
+    ]
+   }
+  },
+  {
+   "id": 1408,
+   "status": "FREEAGENT",
+   "onTeamId": 0,
+   "player": {
+    "id": 1408,
+    "fullName": "Del Early",
+    "proTeamId": 1,
+    "defaultPositionId": 1,
+    "eligibleSlots": [
+     3,
+     6,
+     7,
+     8
+    ],
+    "injuryStatus": "ACTIVE",
+    "injured": false,
+    "lastNewsDate": 1793556000000,
+    "ownership": {
+     "percentOwned": 15
+    },
+    "stats": [
+     {
+      "seasonId": 2027,
+      "statSourceId": 0,
+      "statSplitTypeId": 0,
+      "appliedTotal": 17.0,
+      "appliedAverage": 1.7
+     },
+     {
+      "seasonId": 2027,
+      "statSourceId": 1,
+      "statSplitTypeId": 0,
+      "appliedTotal": 135.3,
+      "appliedAverage": 1.65
+     }
+    ]
+   }
+  }
+ ]
+}

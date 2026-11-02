@@ -1,0 +1,78 @@
+{
+ "topics": [
+  {
+   "id": "topic-dm-two",
+   "type": "CHAT_DIRECT_MESSAGE",
+   "viewableBy": [
+    "{TEST-SWID-0004}",
+    "{member-two}"
+   ],
+   "messages": [
+    {
+     "id": "m1",
+     "author": "{member-two}",
+     "content": "u up for a trade?",
+     "date": 1793638800000
+    },
+    {
+     "id": "m2",
+     "author": "{TEST-SWID-0004}",
+     "content": "maybe",
+     "date": 1793640600000
+    },
+    {
+     "id": "m3",
+     "author": "{member-two}",
+     "content": "max for wolf?",
+     "date": 1793649000000
+    }
+   ]
+  },
+  {
+   "id": "topic-league",
+   "type": "CHAT_ALL_MEMBERS",
+   "viewableBy": [
+    "{TEST-SWID-0004}",
+    "{member-one}",
+    "{member-two}",
+    "{member-three}",
+    "{member-five}",
+    "{member-six}",
+    "{member-seven}"
+   ],
+   "messages": [
+    {
+     "id": "m4",
+     "author": "LM",
+     "content": "Team Two proposed a trade",
+     "date": 1793649300000
+    },
+    {
+     "id": "m5",
+     "author": "{member-three}",
+     "content": "gg everyone",
+     "date": 1793649360000
+    },
+    {
+     "id": "m6",
+     "author": "{member-three}",
+     "content": "oops",
+     "date": 1793649420000,
+     "isDeleted": true
+    }
+   ]
+  },
+  {
+   "id": "topic-activity",
+   "type": "ACTIVITY_TRANSACTIONS",
+   "messages": [
+    {
+     "id": "m7",
+     "author": "{member-two}",
+     "content": "dropped Xavi Xray",
+     "date": 1793647200000
+    }
+   ]
+  }
+ ]
+}

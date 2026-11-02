@@ -1,0 +1,33 @@
+{
+ "id": 488544617,
+ "settings": {
+  "scheduleSettings": {
+   "matchupPeriods": {
+    "4": [
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29
+    ],
+    "5": [
+     30,
+     31,
+     32,
+     33,
+     34,
+     35,
+     36
+    ]
+   }
+  },
+  "acquisitionSettings": {
+   "matchupAcquisitionLimit": 1,
+   "matchupLimitPerScoringPeriod": true,
+   "waiverHours": 24,
+   "isUsingAcquisitionBudget": false
+  }
+ }
+}

@@ -1,0 +1,62 @@
+{
+  "league_id": 123456789,
+  "team_id": 1,
+  "season": 2027,
+  "auto_execute": false,
+  "timezone": "",
+  "mac_notifications": true,
+  "ntfy_topic": "",
+  "ntfy_server": "https://ntfy.sh",
+  "notify_all_drops": true,
+  "poll_interval_seconds": 120,
+  "lineup_lead_minutes": 30,
+  "morning_hour": 9,
+  "refresh_projections": true,
+  "proj_file": "",
+  "model_data_dir": "",
+  "trades_dir": "",
+  "watch_player_ids": [],
+  "value_overrides": {
+    "Aleksander Barkov": 2.0
+  },
+  "rules": {
+    "min_edge": 0.25,
+    "min_p": 0.75,
+    "min_gp": 5,
+    "max_drop_proj": 1.85,
+    "weekly_add_limit": 7,
+    "fa_adds_per_period": 1,
+    "candidate_min_diff": 0.2,
+    "fa_pool_limit": 80
+  },
+  "stream": {
+    "enabled": true,
+    "pregame_minutes": 60,
+    "min_start_minutes": 20,
+    "max_drop_proj": 1.8,
+    "drop_margin": 0.1,
+    "reserve_adds": 1,
+    "reserve_until_days_left": 2,
+    "min_gp": 5,
+    "fa_pool_limit": 120
+  },
+  "claude_hook": false,
+  "claude_bin": "",
+  "claude_max_per_day": 4,
+  "claude_min_gap_minutes": 30,
+  "claude_timeout_minutes": 20,
+  "claude_extra_prompt": "",
+  "claude_args": [
+    "--allowedTools",
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash(python3 -m fhockey:*)",
+    "Bash(python3 -I model/trade_eval.py:*)",
+    "Bash(python3 -I trades/trade_scan.py:*)",
+    "Bash(python3 -I trades/robust.py:*)"
+  ],
+  "launchd_label": "com.ethanzhoucool.fantasy-hockey",
+  "reads_base": "https://lm-api-reads.fantasy.espn.com/apis/v3/games/fhl",
+  "writes_base": "https://lm-api-writes.fantasy.espn.com/apis/v3/games/fhl"
+}
