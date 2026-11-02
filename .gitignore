@@ -20,6 +20,9 @@ trades/*.txt
 chat_seen.txt
 drops_seen.txt
 
+# Private league memory (managers, offers, chat style): see AGENTS.md
+memory/*.local.md
+
 # Secrets and local state (these normally live outside the repo anyway)
 auth.json
 config.json

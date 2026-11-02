@@ -5,6 +5,8 @@ polls ESPN's API, applies fixed rules (lineup, pickups, streaming), sends you a 
 happens, and only hands a decision to Claude Code when it needs judgment (a trade offer or a chat message)
 and you have turned that on.
 
+Agents (Claude Code and others): start with [AGENTS.md](AGENTS.md), the project's long-term memory and rules.
+
 Python 3.9+ standard library only. No pip installs. macOS for the launchd agent and banners; the rest runs anywhere.
 
 > **ESPN's API is unofficial and undocumented.** Endpoints, field names and write payloads can change without

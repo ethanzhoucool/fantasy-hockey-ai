@@ -56,6 +56,8 @@ def build_prompt(cfg, files):
     lines = [
         f"You were started by the fantasy-hockey watcher (repo {REPO_ROOT}) because these ESPN fantasy hockey events "
         "need judgment. Read docs/TRADE_PLAYBOOK.md first and follow it.",
+        "Also follow AGENTS.md and memory/LEAGUE.local.md (league notes, if present). You are read-only here: "
+        "don't try to edit memory; put anything worth remembering in your answer.",
         "Event files (JSON):",
         *[f"- {f}" for f in files],
         "Read-only helpers, run from the repo root:",
