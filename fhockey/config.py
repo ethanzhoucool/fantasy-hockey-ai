@@ -32,7 +32,7 @@ DEFAULTS = {
     "model_data_dir": "",  # NHL stats for model/project.py; default <repo>/model/data
     "trades_dir": "",  # where `snapshot` writes league_<date>.txt; default <repo>/trades
     "watch_player_ids": [],  # extra players to watch for WAIVERS -> FREEAGENT
-    # pre-approved adds run once as the day's free-agent add: [{"add": id, "drop": id, "from_sp": n, "note": ""}]
+    # pre-approved adds run once: [{"add": id, "drop": id, "from_sp": n, "note": ""}]
     "planned_moves": [],
     "value_overrides": {"Aleksander Barkov": 2.0},  # from bot.js: missed last season, elite when healthy
     "rules": {
@@ -41,7 +41,6 @@ DEFAULTS = {
         "min_gp": 5,
         "max_drop_proj": 1.85,
         "weekly_add_limit": 7,
-        "fa_adds_per_period": 1,
         "candidate_min_diff": 0.2,
         "fa_pool_limit": 80,
     },
@@ -51,6 +50,7 @@ DEFAULTS = {
         "min_start_minutes": 20,
         "max_drop_proj": 1.80,
         "drop_margin": 0.10,
+        "adds_per_day": 1,  # the service's own pacing for the weekly adds; ESPN has no daily limit
         "reserve_adds": 1,
         "reserve_until_days_left": 2,
         "min_gp": 5,

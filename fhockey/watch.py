@@ -377,7 +377,7 @@ class Watcher:
                 self.note("model", f"projection refresh failed, using old values: {msg}", priority="low")
             view.proj = Projections.load(cfg.proj_path)
 
-        # 5a. moves approved ahead of time (config "planned_moves"): first claim on the day's free-agent add
+        # 5a. moves approved ahead of time (config "planned_moves")
         roster_changed = False
         if cfg["planned_moves"]:
             res = actions.run_planned(view, execute, cfg["planned_moves"], st)
@@ -410,7 +410,7 @@ class Watcher:
             if any(m["kind"] == "FREEAGENT" for m in res["executed"]):
                 roster_changed = True
             if any(m["kind"] == "FREEAGENT" for m in res["moves"]):
-                daily["fa_planned"] = True  # today's one free-agent add is spoken for (also in dry run)
+                daily["fa_planned"] = True  # a pickup replaces today's stream (also in dry run)
         elif drop_lines:
             self.log.info("dropped: %s", "; ".join(drop_lines))
 

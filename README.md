@@ -154,15 +154,14 @@ weight `gp / (gp + 25)` on this season.
 - neither player is already in one of your pending waiver claims
 - weekly limit: `transactionCounter.matchupAcquisitionTotals[currentMatchupPeriod]` + pending waiver claims
   + this move <= 7
-- free agents: no free-agent add yet this scoring period (the service's own pacing, `fa_adds_per_period`; ESPN
-  doesn't enforce a daily limit)
+- no daily limit: ESPN doesn't enforce one, so a real upgrade doesn't wait for tomorrow
 - waiver players get a claim of type `WAIVER`
 
 **Streaming** (`fhockey/stream.py`). Each morning and ~60 minutes before the first game:
 
 - today has an empty F, D or UTIL slot after the optimal lineup (started players count as filled)
 - adds this week (counter + pending claims) < 7, and 1 add stays in reserve until the last 2 days of the
-  matchup week (from `mSettings` matchup periods); no free-agent add yet today
+  matchup week (from `mSettings` matchup periods); no add yet today (`stream.adds_per_day`, the service's own pacing)
 - add: a `FREEAGENT` (not on waivers), `ACTIVE`, >= 5 GP, whose game starts more than 20 minutes from now,
   highest value at a position with an empty slot (UTIL takes F or D)
 - drop: the lowest-value skater who is not OUT/IR, projects <= 1.80 (never >= 1.85), is not in a pending trade
@@ -171,9 +170,9 @@ weight `gp / (gp + 25)` on this season.
 - then the lineup is re-run so the streamer starts
 
 **Planned moves** (`planned_moves` in config.json). An add/drop you approved ahead of time, e.g. a player
-who clears waivers after today's add is used: `{"add": <playerId>, "drop": <playerId>, "from_sp": <period>}`.
-It runs once, before pickups and streaming, as that day's free-agent add. It waits while the add is still on
-waivers, the day's add is used, the week is full or the drop is in a pending trade, and is cancelled if the
+who is about to clear waivers: `{"add": <playerId>, "drop": <playerId>, "from_sp": <period>}`.
+It runs once, before pickups and streaming. It waits while the add is still on
+waivers, the week is full or the drop is in a pending trade, and is cancelled if the
 add joins another team or the drop leaves your roster.
 
 All thresholds live under `rules` and `stream` in config.json (see `config.example.json`).
@@ -198,7 +197,7 @@ which is pushed to you. Limits:
 ## Safety
 
 - **Dry run by default.** Writes need `auto_execute: true`; the ESPN client itself refuses to POST otherwise.
-- **Limits.** The pickup and streaming rules above, 1 free-agent add per day (the service's own pacing), 7 adds per week including pending
+- **Limits.** The pickup and streaming rules above, 1 streaming add per day (the service's own pacing), 7 adds per week including pending
   claims. If ESPN's response is missing the add counter, the service assumes the limit is reached.
 - **Writes are never retried.** A timed-out POST may have gone through, so a failed write is reported, not repeated.
 - **Never prints secrets.** Cookies are read from `auth.json` (mode 600, directory 700). They never appear in

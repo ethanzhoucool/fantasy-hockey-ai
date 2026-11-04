@@ -7,8 +7,7 @@ from fhockey.players import SLOT, erf, p_better
 
 from .helpers import NOW, TEST_SWID, Env, prepped
 
-RULES = {"min_edge": 0.25, "min_p": 0.75, "min_gp": 5, "max_drop_proj": 1.85, "weekly_add_limit": 7,
-         "fa_adds_per_period": 1}
+RULES = {"min_edge": 0.25, "min_p": 0.75, "min_gp": 5, "max_drop_proj": 1.85, "weekly_add_limit": 7}
 
 
 def cand(add=None, drop=None, edge=0.5, p=0.9, st="FREEAGENT"):
@@ -63,9 +62,8 @@ class RuleTest(unittest.TestCase):
         self.assertFailsWith(cand(), Budget(weekly_used=5, pending_claims=[{"add": 1, "drop": 2}, {"add": 3, "drop": 4}]),
                              "weekly limit: 7/7")
 
-    def test_one_free_agent_add_per_scoring_period(self):
-        self.assertFailsWith(cand(), Budget(fa_adds_this_period=1), "already used this scoring period")
-        # waiver claims are not limited per day
+    def test_pickups_have_no_daily_limit(self):
+        self.assertEqual(check(cand(), Budget(fa_adds_this_period=1), RULES), [])
         self.assertEqual(check(cand(st="WAIVERS", add=prepped(900, "W", "F", None, 2.0, status="WAIVERS")),
                                Budget(fa_adds_this_period=1), RULES), [])
 
@@ -138,7 +136,7 @@ class FixturePickupTest(unittest.TestCase):
         v = self.env.view()
         self.assertEqual(v.fa_adds_this_period(), 1)
         r = actions.run_pickups(v, execute=False)
-        self.assertEqual([m["kind"] for m in r["moves"]], ["WAIVER"])
+        self.assertEqual([m["kind"] for m in r["moves"]], ["WAIVER", "FREEAGENT"])
 
     def test_state_remembers_todays_free_agent_add(self):
         self.assertEqual(self.env.view(state={"fa_add_sp": 34}).fa_adds_this_period(), 1)

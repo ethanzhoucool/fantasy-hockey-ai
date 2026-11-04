@@ -7,7 +7,6 @@ at most one FREEAGENT add and one new WAIVER claim per run:
   - the drop is not in a pending trade, not OUT/IR, and projects below 1.85 (core players are never dropped)
   - no duplicate pending claim: neither the add nor the drop is already in one of our pending waiver claims
   - weekly limit: acquisitions this matchup period + pending waiver claims + this move <= 7
-  - FREEAGENT only: no free-agent add yet this scoring period (league allows 1 per scoring day)
   - WAIVERS players get a claim of type WAIVER
 """
 from .players import OUT, SLOT, p_better
@@ -90,8 +89,6 @@ def check(c, budget, rules):
         fails.append("player already used by a move this run")
     if budget.committed + 1 > rules["weekly_add_limit"]:
         fails.append(f"weekly limit: {budget.committed}/{rules['weekly_add_limit']} used incl. pending claims")
-    if c["st"] == "FREEAGENT" and budget.fa_adds_this_period >= rules["fa_adds_per_period"]:
-        fails.append("free-agent add already used this scoring period")
     return fails
 
 

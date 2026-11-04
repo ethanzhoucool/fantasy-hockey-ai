@@ -26,7 +26,6 @@
     "min_gp": 5,
     "max_drop_proj": 1.85,
     "weekly_add_limit": 7,
-    "fa_adds_per_period": 1,
     "candidate_min_diff": 0.2,
     "fa_pool_limit": 80
   },
@@ -36,6 +35,7 @@
     "min_start_minutes": 20,
     "max_drop_proj": 1.8,
     "drop_margin": 0.1,
+    "adds_per_day": 1,
     "reserve_adds": 1,
     "reserve_until_days_left": 2,
     "min_gp": 5,

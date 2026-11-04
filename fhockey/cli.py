@@ -100,7 +100,7 @@ def cmd_status(cfg, args, deps):
     except (StopIteration, KeyError, EspnError):
         print("matchup: n/a")
     print(f"adds this week {view.weekly_used()} + {len(budget.pending_claims)} pending claim(s) "
-          f"/ {cfg['rules']['weekly_add_limit']} | free-agent add used today: {'yes' if budget.fa_adds_this_period else 'no'}"
+          f"/ {cfg['rules']['weekly_add_limit']} | adds today: {budget.fa_adds_this_period}"
           f" | days left in matchup week: {view.days_left_in_week()}")
     first = view.schedule.first_game(view.cur)
     if first:

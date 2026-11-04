@@ -13,8 +13,8 @@ A Python service (standard library only) that manages one ESPN Fantasy Hockey te
 - Each poll: roster and injury changes, other teams' drops, waiver clears, trade offers, chat, a daily
   projection refresh, planned moves, pickups, streaming, then the lineup. See README "What it does".
 - Writes happen only when `auto_execute` is true in config.json, and only within the fixed rules below.
-- `planned_moves` in config.json: add/drops the owner approved ahead of time. Each runs once, as that day's
-  free-agent add, from `from_sp` on. It waits while the add is on waivers or the day's add is used.
+- `planned_moves` in config.json: add/drops the owner approved ahead of time. Each runs once, from `from_sp`
+  on. It waits while the add is on waivers, the week is full or the drop is in a pending trade.
 - Claude hook (`claude_hook: true`): trade offers and chat messages go to `inbox/`, and the watcher starts
   `claude -p` (max 4/day) with read-only tools. Its answer becomes a notification.
 
@@ -83,7 +83,8 @@ Full rules: `docs/TRADE_PLAYBOOK.md`. In short:
   become free agents. Waiver order wins claims; speed only matters once a player clears.
 - **Add limits.** 7 per matchup week (`transactionCounter.matchupAcquisitionTotals[currentMatchupPeriod]`, plus
   pending claims). No daily limit: ESPN's `matchupAcquisitionLimit: 1` + `matchupLimitPerScoringPeriod: true` is
-  not enforced. The service's one free-agent add a day (`fa_adds_per_period`) is its own pacing, not a league rule.
+  not enforced. Streaming paces itself at one add a day (`stream.adds_per_day`) to spread
+  the 7; real pickups and planned moves don't wait.
 - **Scoring rewards blocks** (0.5 each), so shot-blocking defensemen are worth more than standard rankings say.
 
 ## ESPN API gotchas (verified live)

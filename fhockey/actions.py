@@ -107,9 +107,8 @@ def run_stream(view, execute, state=None):
 
 def run_planned(view, execute, plans, state):
     """Moves approved ahead of time, from config "planned_moves": [{"add": id, "drop": id, "from_sp": n}].
-    Each one runs once, as that day's free-agent add, on or after scoring period from_sp and only while the add is
-    a free agent. It waits (and retries every poll) while he is on waivers, the day's add is used, the week is full
-    or the drop is in a pending trade; it is retired if the add is gone to another team or the drop has left."""
+    Each one runs once, on or after scoring period from_sp and only while the add is a free agent. It waits (and
+    retries every poll) while he is on waivers, the week is full or the drop is in a pending trade; it is retired if the add is gone to another team or the drop has left."""
     done = state.setdefault("planned_done", {})
     rules = view.cfg["rules"]
     lines, executed = [], []
@@ -132,7 +131,6 @@ def run_planned(view, execute, plans, state):
         budget = view.budget()
         wait = [why for bad, why in (
             (status == "WAIVERS", f"{name} still on waivers"),
-            (budget.fa_adds_this_period >= rules["fa_adds_per_period"], "today's free-agent add already used"),
             (budget.committed + 1 > rules["weekly_add_limit"], "weekly add limit reached"),
             (drop_id in budget.pending_trade_ids, f"{drop['n']} is in a pending trade"),
         ) if bad]
@@ -152,5 +150,5 @@ def run_planned(view, execute, plans, state):
         state["fa_add_sp"] = view.cur
         executed.append(m)
         lines.append(f"planned move: ADDED {desc}" + (f" ({m['note']})" if m.get("note") else ""))
-        break  # one free-agent add per day
+        break  # one per run; the next poll takes the next one
     return {"lines": lines, "executed": executed}

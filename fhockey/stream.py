@@ -35,7 +35,7 @@ def plan(ros, lineup_res, fas, budget, scfg, rules, now_ms, sp, streamed_today=(
     reserve = scfg["reserve_adds"] if days_left > scfg["reserve_until_days_left"] else 0
     if budget.committed + 1 > limit - reserve:
         return {"ok": False, "reason": f"add budget: {budget.committed}/{limit} used, {reserve} kept in reserve"}
-    if budget.fa_adds_this_period >= rules["fa_adds_per_period"]:
+    if budget.fa_adds_this_period >= scfg["adds_per_day"]:
         return {"ok": False, "reason": "free-agent add already used this scoring period"}
 
     positions = set()

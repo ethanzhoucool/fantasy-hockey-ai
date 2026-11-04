@@ -44,12 +44,12 @@ class PlannedMoveTest(unittest.TestCase):
         self.assertIn("still on waivers", res["lines"][0])
         self.assertEqual((self.env.espn.posts, st["planned_done"]), ([], {}))
 
-    def test_waits_when_days_add_used(self):
+    def test_runs_after_todays_add(self):
         self.env.espn.tx(34).append({"id": "fa1", "type": "FREEAGENT", "teamId": 4, "status": "EXECUTED",
                                      "items": [{"playerId": 1405, "type": "ADD", "toTeamId": 4}]})
         res, st = self.run_plan()
-        self.assertIn("free-agent add already used", res["lines"][0])
-        self.assertEqual(self.env.espn.posts, [])
+        self.assertIn("ADDED", res["lines"][0])
+        self.assertEqual(len(self.env.espn.posts), 1)
 
     def test_retired_when_drop_gone(self):
         res, st = self.run_plan([dict(PLAN, drop=999999)])
@@ -74,7 +74,7 @@ class PlannedMoveTest(unittest.TestCase):
         self.assertEqual(code, 0)
         adds = [c["body"] for c in env.espn.posts if c["body"]["type"] == "FREEAGENT"]
         self.assertEqual([i["playerId"] for i in adds[0]["items"]], [1403, 1010])
-        self.assertEqual(len(adds), 1)  # streaming and pickups leave the day's add alone
+        self.assertNotIn("stream", [k for k, _ in sent])  # a pickup may follow, but today's stream stays out
         self.assertTrue(any(k == "pickup" and "planned move: ADDED" in m for k, m in sent))
 
 
