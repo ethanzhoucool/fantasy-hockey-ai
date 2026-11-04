@@ -59,7 +59,7 @@ in our sim is useless if no sane manager would take it. Every recommendation mus
   Ethan are the ones where the two players he gets back are both startable (so the drop is a bench guy).
 
 ## Bigger than trades: streaming (Nov 2)
-- Ethan leaves ~40 starting slot-days empty per week (players without games). 1 add per day / 7 per week, used
+- Ethan leaves ~40 starting slot-days empty per week (players without games). 7 adds per week (no daily limit), used
   on free agents who play that day, is worth ~+150 pts over the season (`trades/streaming.py`), far more than
   any single trade (+15 to +25). The manager who uses 7/7 adds every week leads the league in points for.
 - Keep 1-2 replacement-level roster spots (projection <= 1.80) as rotating stream spots. Never stream away core.

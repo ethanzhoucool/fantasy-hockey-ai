@@ -154,7 +154,8 @@ weight `gp / (gp + 25)` on this season.
 - neither player is already in one of your pending waiver claims
 - weekly limit: `transactionCounter.matchupAcquisitionTotals[currentMatchupPeriod]` + pending waiver claims
   + this move <= 7
-- free agents: no free-agent add yet this scoring period (the league allows 1 per scoring day)
+- free agents: no free-agent add yet this scoring period (the service's own pacing, `fa_adds_per_period`; ESPN
+  doesn't enforce a daily limit)
 - waiver players get a claim of type `WAIVER`
 
 **Streaming** (`fhockey/stream.py`). Each morning and ~60 minutes before the first game:
@@ -197,7 +198,7 @@ which is pushed to you. Limits:
 ## Safety
 
 - **Dry run by default.** Writes need `auto_execute: true`; the ESPN client itself refuses to POST otherwise.
-- **Limits.** The pickup and streaming rules above, 1 free-agent add per day, 7 adds per week including pending
+- **Limits.** The pickup and streaming rules above, 1 free-agent add per day (the service's own pacing), 7 adds per week including pending
   claims. If ESPN's response is missing the add counter, the service assumes the limit is reached.
 - **Writes are never retried.** A timed-out POST may have gone through, so a failed write is reported, not repeated.
 - **Never prints secrets.** Cookies are read from `auth.json` (mode 600, directory 700). They never appear in
@@ -219,8 +220,8 @@ Verified against a live league (Nov 2 2026): every read the service makes, a `FU
 pending-trade parsing (including the named `DROP` item on uneven trades). ESPN never changes a trade proposal's own status: an accept, decline or cancel is a
 new record whose `relatedTransactionId` points at the proposal, and the service reads the status from those. In ESPN hockey,
 `scheduleSettings.matchupPeriods` maps matchups to week numbers, not scoring days, so the service uses a
-Monday-Sunday week. Still not confirmed live: the free-agent add payload from Python (the same JSON already
-worked from the browser) and **`WAIVER` claims**, which were never confirmed to succeed anywhere.
+Monday-Sunday week. Free-agent adds from Python were confirmed Nov 3-4 2026. Still not confirmed live: **`WAIVER`
+claims**, which were never confirmed to succeed anywhere.
 
 python.org builds of Python ship without CA certificates; the client falls back to `/etc/ssl/cert.pem` on macOS.
 

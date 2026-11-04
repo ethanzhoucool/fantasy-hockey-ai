@@ -81,8 +81,9 @@ Full rules: `docs/TRADE_PLAYBOOK.md`. In short:
   day on a free agent who plays that day is worth ~+150 pts a season; a good trade is +15 to +25.
 - **Waivers.** Dropped players sit on waivers until a daily run around 08:00 UTC at least 24 h later, then
   become free agents. Waiver order wins claims; speed only matters once a player clears.
-- **Add limits.** 1 acquisition per scoring day; 7 per matchup week
-  (`transactionCounter.matchupAcquisitionTotals[currentMatchupPeriod]`, plus pending claims).
+- **Add limits.** 7 per matchup week (`transactionCounter.matchupAcquisitionTotals[currentMatchupPeriod]`, plus
+  pending claims). No daily limit: ESPN's `matchupAcquisitionLimit: 1` + `matchupLimitPerScoringPeriod: true` is
+  not enforced. The service's one free-agent add a day (`fa_adds_per_period`) is its own pacing, not a league rule.
 - **Scoring rewards blocks** (0.5 each), so shot-blocking defensemen are worth more than standard rankings say.
 
 ## ESPN API gotchas (verified live)
@@ -98,8 +99,7 @@ Full rules: `docs/TRADE_PLAYBOOK.md`. In short:
 ## Verified vs not (update as things are confirmed)
 
 - Verified live (Nov 2 2026): every read, `FUTURE_ROSTER` lineup save, trade parsing, the watcher loop.
-- First free-agent add from Python expected Nov 3 2026 (a planned move). The same JSON already worked from
-  the browser.
+- Verified live: free-agent adds from Python (Nov 3 and Nov 4 2026), including a second add in one scoring day.
 - `WAIVER` claims: never confirmed anywhere. If one fails, report the error; don't retry other payloads.
 
 ## Self-improvement protocol
@@ -135,3 +135,6 @@ where the owner can see the changes.
   Test new API assumptions against the live league with a read or a harmless write before trusting them.
 - 2026-11-02: Cancelled and declined offers still read PENDING: ESPN records each answer as a new record
   (`relatedTransactionId` -> proposal). The service now reads those; `view=mPendingTransactions` is the live list.
+- 2026-11-04: "One add per scoring day" was wrong; I inferred it from a settings field and never tested it. The
+  owner pushed back and ESPN accepted a second add that day. This season 25 of 48 team-days with adds had 2+ (up
+  to 6), and no team has passed 7 in a week. Check a rule against the league's own history before enforcing it.
