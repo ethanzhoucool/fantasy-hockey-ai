@@ -112,7 +112,7 @@ class Env:
         root = Path(self.tmp.name)
         data = {"league_id": 488544617, "team_id": 4, "season": 2027, "mac_notifications": False,
                 "timezone": "UTC", "refresh_projections": False, "proj_file": str(FIX / "proj.json"),
-                "trades_dir": str(root / "trades")}
+                "trades_dir": str(root / "trades"), "memory_dir": str(root / "memory")}
         data.update(cfg_overrides)
         self.cfg = Config(data, config_dir=root / "config", state_dir=root / "state", log_dir=root / "logs")
         self.cfg.save()

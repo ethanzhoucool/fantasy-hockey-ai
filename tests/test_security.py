@@ -107,7 +107,8 @@ class SecretHandlingTest(unittest.TestCase):
                 outputs += [out, err]
                 for argv in (["status"], ["lineup"], ["lineup", "--dry-run"], ["pickups", "-v"], ["stream"],
                              ["watch", "--once"], ["watch", "--once"], ["snapshot"], ["offers"], ["chat"],
-                             ["trade-input", "--offer", "tx-offer-in"], ["inbox"]):
+                             ["trade-input", "--offer", "tx-offer-in"], ["inbox"], ["gm", "--dry-run"], ["gm"],
+                             ["gm-report"]):
                     code, out, err = run_cli(env, argv)
                     self.assertIn(code, (0, 1), f"{argv}: {err}")
                     outputs += [out, err]

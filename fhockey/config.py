@@ -81,6 +81,31 @@ DEFAULTS = {
         "Bash(python3 -I trades/trade_scan.py:*)",
         "Bash(python3 -I trades/robust.py:*)",
     ],
+    # the Opus GM (fhockey/gm.py): while enabled, Opus makes every add and drop instead of the `rules` and `stream`
+    # passes. The numbers below are hard limits Python enforces whatever Opus says.
+    "gm": {
+        "enabled": False,
+        "model": "opus",
+        "effort": "high",
+        "timeout_minutes": 15,
+        "max_runs_per_day": 4,
+        "min_gap_minutes": 30,
+        "max_moves_per_run": 2,
+        "max_moves_per_day": 3,
+        "max_plan_age_minutes": 60,
+        "core_floor": 2.05,  # never drop a skater whose median of model, ESPN projection and season average reaches this
+        # goalies score on a higher scale: with the skater floor nearly any goalie, even a one-week streamer, could
+        # never be dropped again. So this is only for elite ones; protect your real starters by name below.
+        "core_floor_goalie": 3.5,
+        "protected_players": [],  # ids or full names that can never be dropped
+        "trigger_margin": 0.2,  # a newly available player wakes Opus if he beats my weakest by this much
+        "fa_pool_limit": 120,
+        "goalie_pool_limit": 30,
+        "candidates_per_position": {"F": 25, "D": 15, "G": 8},
+        "news_per_position": {"F": 10, "D": 6, "G": 4},
+        "lock_wait_seconds": 300,
+    },
+    "memory_dir": "",  # default <repo>/memory (LEAGUE.local.md and GM_LOG.local.md, both gitignored)
     "launchd_label": "com.ethanzhoucool.fantasy-hockey",
     "reads_base": "https://lm-api-reads.fantasy.espn.com/apis/v3/games/fhl",
     "writes_base": "https://lm-api-writes.fantasy.espn.com/apis/v3/games/fhl",
@@ -187,6 +212,10 @@ class Config:
     @property
     def model_data_dir(self):
         return Path(self["model_data_dir"]).expanduser() if self["model_data_dir"] else REPO_ROOT / "model" / "data"
+
+    @property
+    def memory_dir(self):
+        return Path(self["memory_dir"]).expanduser() if self["memory_dir"] else REPO_ROOT / "memory"
 
     @property
     def trades_dir(self):

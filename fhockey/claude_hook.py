@@ -25,7 +25,7 @@ from .state import FileLock, is_locked, write_json
 
 DAY_MS = 86_400_000
 # Without these, `claude -p` inherits ~/.claude/settings.json: its allow list (curl, git, gh, ...), auto mode and
-# every MCP connector. --allowedTools only adds to that list. Checked against the real CLI: see docs/GM_PLAYBOOK.md.
+# every MCP connector. --allowedTools only adds to that list. Checked against a real run, see AGENTS.md's lessons log.
 #   --restricted         ignores user/project/local settings, keeps file tools inside the working directories
 #   --strict-mcp-config  no MCP servers (Gmail, Chrome, iMessage, ...)
 #   dontAsk              anything not explicitly allowed is denied, nobody is asked

@@ -9,6 +9,8 @@ It detects:
   - new chat messages                                              -> inbox (+ optional Claude hook)
   - injury-status and roster changes on Ethan's team               -> lineup re-run
   - first puck drop of the day: lineup 30 min before; streaming in the morning and 60 min before
+With gm.enabled on, Opus (fhockey/gm.py) makes the adds and drops instead of the pickup and streaming rules, and the
+drop, waiver-clear and injury detectors above decide when it is worth waking. Planned moves and lineups don't change.
 State lives in <state_dir>/state.json.
 """
 import datetime as dt
@@ -20,10 +22,11 @@ import traceback
 
 from . import actions
 from . import claude_hook
+from . import gm
 from .config import REPO_ROOT
 from .espn import AuthError, EspnError, scrub
 from .league import TERMINAL_TRADE, LeagueView, trade_outcomes, trade_status
-from .players import OUT, INJ_SHORT, Projections, position
+from .players import OUT, INJ_SHORT, STARTING, Projections, position
 from .state import FileLock, load_state, save_state
 
 MIN = 60_000
@@ -262,7 +265,10 @@ class Watcher:
         # 1. Ethan's roster: injuries and roster changes
         cur_roster = roster_map(view.roster_entries)
         prev = st.get("roster")
+        starters_out = []
         if prev is not None:
+            starters_out = [r["n"] for k, r in cur_roster.items() if k in prev and r["inj"] in OUT
+                            and prev[k]["inj"] not in OUT and r["slot"] in STARTING]
             added, removed, inj = diff_roster(prev, cur_roster)
             if inj:
                 self.note("injury", "; ".join(f"{n}: {INJ_SHORT.get(a, a)} -> {INJ_SHORT.get(b, b)}" for n, a, b in inj),
@@ -392,9 +398,15 @@ class Watcher:
                 daily["fa_planned"] = True
                 view = LeagueView(self.client, cfg, now, st, proj=view.proj, schedule=view.schedule).load()
 
-        # 5b. pickups: right after a drop / waiver clear, and once each morning
+        # 5b. pickups: right after a drop / waiver clear, and once each morning. With the GM on, Opus decides (step 8).
+        gm_on = bool(cfg["gm"]["enabled"])
         morning_due = local.hour >= cfg["morning_hour"] and not daily.get("morning")
-        if trigger or morning_due:
+        if gm_on:
+            if drop_lines and cfg["notify_all_drops"]:
+                self.note("drop", "dropped: " + "; ".join(drop_lines))
+            elif drop_lines:
+                self.log.info("dropped: %s", "; ".join(drop_lines))
+        elif trigger or morning_due:
             extra = sorted(set(trigger) | {int(k) for k in watched})
             res = actions.run_pickups(view, execute, extra, st)
             sent = daily.setdefault("pickup_msgs", [])
@@ -423,7 +435,9 @@ class Watcher:
         scfg = cfg["stream"]
         pregame_due = bool(first_game) and now >= first_game - scfg["pregame_minutes"] * MIN and not daily.get("pregame")
         force_lineup = roster_changed
-        if scfg["enabled"] and (morning_due or pregame_due) and daily.get("fa_planned"):
+        if gm_on:
+            pass  # step 8 decides, and marks morning and pregame only once a run has really started
+        elif scfg["enabled"] and (morning_due or pregame_due) and daily.get("fa_planned"):
             self.log.info("stream: no move (today's free-agent add already used by a pickup)")
         elif scfg["enabled"] and (morning_due or pregame_due):
             r = actions.run_stream(view, execute, st)
@@ -440,9 +454,9 @@ class Watcher:
                 st["lineup_dirty"] = True
                 force_lineup = True
                 view = LeagueView(self.client, cfg, now, st, proj=view.proj, schedule=view.schedule).load()
-        if morning_due:
+        if morning_due and not gm_on:
             daily["morning"] = now
-        if pregame_due:
+        if pregame_due and not gm_on:
             daily["pregame"] = now
 
         # 7. lineup: 30 min before the first game, after roster changes, and right after a stream add
@@ -457,7 +471,17 @@ class Watcher:
             else:
                 self.log.info("lineup: %s", r["lines"][0])
 
-        # 8. Claude hook (opt-in)
+        # 8. Opus GM (opt-in): morning, a retry before the first game if that failed, and events worth waking it for
+        if gm_on:
+            events = [f"{n} is out" for n in starters_out]
+            worth = gm.worth_a_look(view, trigger) if trigger else []
+            if worth:
+                events.append("available: " + ", ".join(worth))
+            result = gm.watch_step(cfg, st, view, daily, now, morning_due, pregame_due, events, self.spawn, self.log)
+            if result != "nothing due":
+                self.log.info("gm: %s", result)
+
+        # 9. Claude hook (opt-in)
         reason = claude_hook.maybe_dispatch(cfg, st, now, self.spawn, self.log)
         if reason not in ("disabled", "inbox empty"):
             self.log.info("claude hook: %s", reason)

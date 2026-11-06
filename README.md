@@ -28,6 +28,9 @@ Python 3.9+ standard library only. No pip installs. macOS for the launchd agent 
 Everything that writes to ESPN is **off by default** (`auto_execute: false`): the service logs and notifies
 what it *would* do. Turn writes on only after a few days of dry runs look right.
 
+With `gm.enabled` on, Claude Opus makes the adds and drops instead of the pickup and streaming rows above. See
+[Opus GM](#opus-gm-opt-in-off-by-default).
+
 ## Architecture
 
 ```
@@ -49,6 +52,9 @@ what it *would* do. Turn writes on only after a few days of dry runs look right.
      |                                                          |
      +--> pickups.py  bot.js candidates + the 7 pickup rules    |
      +--> stream.py   empty-slot streaming rules                |
+     +--> gm.py       (opt-in, replaces the two above) starts   |
+     |                `gm` in the background: Opus plans, hard  |
+     |                limits re-check every move, then it runs  |
      +--> lineup.py   9F/5D/1UTIL/2G optimizer (bot.js port)    |
      |      |                                                   |
      |      +--> espn.py POST lm-api-writes .../transactions/   |  only when auto_execute is true
@@ -129,6 +135,8 @@ knows a topic name can read it, so use a long random one:
 | `trade-input --offer ID` or `--partner N --give "A,B" --get "C"` `[--out F]` | Input for `model/trade_eval.py` |
 | `chat [--hours 24]` | Recent chat threads, flags threads that need a reply |
 | `inbox` | Events waiting for judgment |
+| `gm [--dry-run] [--reason X]` | Ask Opus for today's adds and drops, check them against the limits, execute them |
+| `gm-report [--entries N]` | Is the GM on, how its last run went, and its latest decisions and reasons |
 
 `--dry-run` never writes. Without it, commands still write only when `auto_execute` is true.
 
@@ -177,6 +185,50 @@ add joins another team or the drop leaves your roster.
 
 All thresholds live under `rules` and `stream` in config.json (see `config.example.json`).
 
+## Opus GM (opt-in, off by default)
+
+With `"gm": {"enabled": true}` the pickup and streaming rules stop and Claude Opus makes every add and drop. Python
+keeps polling, the lineup math, the ESPN writes and the hard limits. Planned moves and lineups don't change. Trades
+and messages still need you; Opus can only leave a note.
+
+**When it runs** (at most `max_runs_per_day`, 4, and one per `min_gap_minutes`, 30):
+
+- each morning (`morning_hour`), once
+- before the first game, only as a retry if the morning run got no answer
+- when a starter goes OUT, or when a dropped or cleared player beats your weakest by `trigger_margin` (0.2) on his
+  best valuation. An event that hits the rate limit waits for the rest of that scoring day.
+- not at all when the week's adds are used up
+
+**What Opus sees.** Over stdin: `docs/GM_PLAYBOOK.md`, `memory/LEAGUE.local.md`, the end of `memory/GM_LOG.local.md`
+(Python appends every decision, so later runs remember) and a brief of live data: matchup score, adds left, open
+slots per day for two weeks, your roster and the top available players with three valuations, games, ownership and
+ESPN news, pending trades, and your recent moves with the points scored since. **Chat, DMs and team names are never
+in it**, because other managers write those and this run can cause moves.
+
+**What it can do.** `claude -p` with WebSearch only, none of your Claude settings or connectors, from an empty
+directory. It answers with a JSON plan. It has no way to touch ESPN or a file.
+
+**Hard limits**, re-checked against a fresh ESPN read right before each write, whatever Opus says:
+
+- the add is in the brief, is still a free agent or on waivers, and isn't OUT, on IR or suspended
+- the drop is in the brief and on your roster, not in the IR slot, with no game started, not in a pending trade or
+  claim, and not in `protected_players`
+- the median of the drop's three valuations is under `core_floor` (2.05; goalies `core_floor_goalie`, 3.5), so stars
+  can't be cut. Goalies score on a higher scale, so protect your real starters by name.
+- ids and names match
+- at least 9 F, 5 D, 2 G remain outside the IR slot
+- 7 adds a week including pending claims, `max_moves_per_run` (2), `max_moves_per_day` (3)
+- the plan is under `max_plan_age_minutes` (60) old
+- `FREEAGENT` players get an add, `WAIVERS` players a claim. Writes are never retried, and a failed claim blocks claims
+  for a week, since they have never been confirmed live.
+
+**If anything fails** (timeout, usage limit, malformed output, a plan not written by Opus), there are no moves and no
+fallback to the old rules. Lineups continue, and the failure is reported.
+
+**Where to see it.** `python3 -m fhockey gm-report`, or `events.log` (kind `gm`). It runs on your Claude plan and only
+while your Mac is awake. Try it first with `python3 -m fhockey gm --dry-run`, which asks Opus and checks the plan but
+writes nothing and changes no state.
+
 ## Claude hook (opt-in, off by default)
 
 Trade offers and chat messages need judgment, so the service never acts on them by itself. Each one is written
@@ -202,7 +254,8 @@ which goes to `events.log` (and to Mac or phone alerts if you have them on). Lim
 - **Dry run by default.** Writes need `auto_execute: true`; the ESPN client itself refuses to POST otherwise, and
   refuses whenever `FHOCKEY_READ_ONLY` is set.
 - **Limits.** The pickup and streaming rules above, 1 streaming add per day (the service's own pacing), 7 adds per week including pending
-  claims. If ESPN's response is missing the add counter, the service assumes the limit is reached.
+  claims. If ESPN's response is missing the add counter, the service assumes the limit is reached. The Opus GM has
+  its own hard limits, checked in Python.
 - **Writes are never retried.** A timed-out POST may have gone through, so a failed write is reported, not repeated.
 - **Never prints secrets.** Cookies are read from `auth.json` (mode 600, directory 700). They never appear in
   output, logs, notifications, state or inbox files: every value is registered with a scrubber that all
@@ -213,11 +266,12 @@ which goes to `events.log` (and to Mac or phone alerts if you have them on). Lim
 
 ## What is tested, and what is not
 
-`python3 -m unittest` (104 tests) runs against hand-built fixtures shaped like ESPN responses (`tests/fixtures/`):
+`python3 -m unittest` runs against hand-built fixtures shaped like ESPN responses (`tests/fixtures/`):
 lineup optimization, every pickup rule rejecting, weekly-limit math, streaming budget/reserve, drop eligibility
 and game-time cutoff, drop detection and dedupe, waiver-clear detection, trade/chat/injury detection, lineup
-timing, the Claude hook's rate limit and lock, notifications, the launchd plist, the snapshot format, and that
-no command leaks a cookie.
+timing, the Claude hook's rate limit, lock and read-only arguments, the Opus GM's brief, output parsing, every hard
+limit, run flow and watcher triggers (with a fake Claude), notifications, the launchd plist, the snapshot format,
+and that no command leaks a cookie.
 
 Verified against a live league (Nov 2 2026): every read the service makes, a `FUTURE_ROSTER` lineup save, and
 pending-trade parsing (including the named `DROP` item on uneven trades). ESPN never changes a trade proposal's own status: an accept, decline or cancel is a
@@ -257,6 +311,8 @@ contain other managers' rosters, so `.gitignore` keeps them out of the repo.
 | `~/.config/fantasy-hockey/config.json` | settings (no secrets) |
 | `~/.config/fantasy-hockey/auth.json` | SWID + espn_s2, mode 600 |
 | `~/.local/state/fantasy-hockey/` | `state.json`, schedule/settings caches, `inbox/` |
-| `~/Library/Logs/fantasy-hockey/` | `events.log`, `service.log`, `watch.log`, `claude.log` |
+| `~/.local/state/fantasy-hockey/gm_last.json` | the Opus GM's last brief, plan and result |
+| `~/Library/Logs/fantasy-hockey/` | `events.log`, `service.log`, `watch.log`, `claude.log`, `gm.log` |
+| `memory/GM_LOG.local.md` | every GM decision (gitignored), read back by later runs |
 
 Override the directories with `FHOCKEY_CONFIG_DIR`, `FHOCKEY_STATE_DIR`, `FHOCKEY_LOG_DIR`.

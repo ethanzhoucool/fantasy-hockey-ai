@@ -11,7 +11,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from . import actions, claude_hook, launchd, tools
+from . import actions, claude_hook, gm, launchd, tools
 from .config import Config, ConfigError
 from .espn import AuthError, EspnClient, EspnError, load_auth, save_auth, scrub
 from .espn import urlopen as espn_urlopen
@@ -263,6 +263,16 @@ def cmd_claude_run(cfg, args, deps):
     return claude_hook.run(cfg, Notifier(cfg, runner=deps.runner, opener=deps.opener), runner=deps.runner)
 
 
+def cmd_gm(cfg, args, deps):
+    execute = bool(cfg["auto_execute"]) and not args.dry_run
+    return gm.run(cfg, _client(cfg, deps, execute), Notifier(cfg, runner=deps.runner, opener=deps.opener), get_logger(cfg),
+                  dry_run=args.dry_run, reason=args.reason, now=deps.now, runner=deps.runner, opener=deps.opener)
+
+
+def cmd_gm_report(cfg, args, deps):
+    return gm.report(cfg, args.entries, now=deps.now)
+
+
 def build_parser():
     ap = argparse.ArgumentParser(prog="python3 -m fhockey", description="ESPN fantasy hockey manager")
     sub = ap.add_subparsers(dest="cmd")
@@ -299,6 +309,11 @@ def build_parser():
     c.add_argument("--hours", type=float, default=24)
     sub.add_parser("inbox", help="events waiting for judgment")
     sub.add_parser("claude-run", help="run the Claude hook once over the inbox (watch starts this)")
+    g = sub.add_parser("gm", help="ask Opus for today's adds and drops, check them against the limits, execute them")
+    g.add_argument("--dry-run", action="store_true", help="ask Opus and check the plan, but never write or change state")
+    g.add_argument("--reason", default="manual", help="why this run started (Opus sees it)")
+    r = sub.add_parser("gm-report", help="what the Opus GM decided recently, and why")
+    r.add_argument("--entries", type=int, default=5)
     return ap
 
 
@@ -306,7 +321,7 @@ COMMANDS = {
     "setup": cmd_setup, "status": cmd_status, "lineup": cmd_lineup, "pickups": cmd_pickups, "stream": cmd_stream,
     "watch": cmd_watch, "install": cmd_install, "uninstall": cmd_uninstall, "snapshot": cmd_snapshot,
     "offers": cmd_offers, "trade-input": cmd_trade_input, "chat": cmd_chat, "inbox": cmd_inbox,
-    "claude-run": cmd_claude_run,
+    "claude-run": cmd_claude_run, "gm": cmd_gm, "gm-report": cmd_gm_report,
 }
 
 

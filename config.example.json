@@ -65,6 +65,27 @@
     "Bash(python3 -I trades/trade_scan.py:*)",
     "Bash(python3 -I trades/robust.py:*)"
   ],
+  "gm": {
+    "enabled": false,
+    "model": "opus",
+    "effort": "high",
+    "timeout_minutes": 15,
+    "max_runs_per_day": 4,
+    "min_gap_minutes": 30,
+    "max_moves_per_run": 2,
+    "max_moves_per_day": 3,
+    "max_plan_age_minutes": 60,
+    "core_floor": 2.05,
+    "core_floor_goalie": 3.5,
+    "protected_players": [],
+    "trigger_margin": 0.2,
+    "fa_pool_limit": 120,
+    "goalie_pool_limit": 30,
+    "candidates_per_position": {"F": 25, "D": 15, "G": 8},
+    "news_per_position": {"F": 10, "D": 6, "G": 4},
+    "lock_wait_seconds": 300
+  },
+  "memory_dir": "",
   "launchd_label": "com.ethanzhoucool.fantasy-hockey",
   "reads_base": "https://lm-api-reads.fantasy.espn.com/apis/v3/games/fhl",
   "writes_base": "https://lm-api-writes.fantasy.espn.com/apis/v3/games/fhl"
