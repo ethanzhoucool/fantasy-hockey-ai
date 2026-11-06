@@ -111,10 +111,11 @@ Full rules: `docs/TRADE_PLAYBOOK.md`. In short:
 - Verified live: free-agent adds from Python (Nov 3 and Nov 4 2026), including a second add in one scoring day.
 - `WAIVER` claims: never confirmed anywhere. If one fails, report the error; don't retry other payloads. The GM blocks
   its own claims for a week after a failure (`gm.claim_failed_at` in state.json).
-- Verified live (Nov 6 2026): the GM's real `claude -p` run on the live league, in dry runs only: Opus wrote the plan
-  (Haiku only for web search), its only tools were WebSearch and StructuredOutput, and the plan passed the limits.
-- Fixtures only until a first real one: the GM's own writes through `gm.py`, the watcher starting it, and its pregame
-  retry. Check `python3 -m fhockey gm-report` after the first live run and update this line.
+- Verified live (Nov 6 2026): the GM's real `claude -p` run: Opus wrote the plan (Haiku only for web search), and its
+  only tools were WebSearch and StructuredOutput. Then its first real run: the watcher started the pregame retry, a
+  free-agent add and drop through `gm.py` showed on ESPN's roster, and the lineup re-run and decision log worked.
+- Fixtures only until a first real one: a morning run and event runs from the watcher, and any failure path. Update
+  this line as they happen.
 
 ## Self-improvement protocol
 
