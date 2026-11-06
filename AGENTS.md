@@ -16,7 +16,7 @@ A Python service (standard library only) that manages one ESPN Fantasy Hockey te
 - `planned_moves` in config.json: add/drops the owner approved ahead of time. Each runs once, from `from_sp`
   on. It waits while the add is on waivers, the week is full or the drop is in a pending trade.
 - Claude hook (`claude_hook: true`): trade offers and chat messages go to `inbox/`, and the watcher starts
-  `claude -p` (max 4/day) with read-only tools. Its answer becomes a notification.
+  `claude -p` (max 4/day), locked to read-only commands. Its answer goes to `events.log`.
 
 | Path | What |
 |---|---|
@@ -139,3 +139,7 @@ where the owner can see the changes.
 - 2026-11-04: "One add per scoring day" was wrong; I inferred it from a settings field and never tested it. The
   owner pushed back and ESPN accepted a second add that day. This season 25 of 48 team-days with adds had 2+ (up
   to 6), and no team has passed 7 in a week. Check a rule against the league's own history before enforcing it.
+- 2026-11-06: The hook wasn't read-only. `--allowedTools` only adds to the allow list, so `claude -p` kept the
+  owner's settings: every MCP connector, auto mode, and `curl` ran when tested. `fhockey:*` also allowed `lineup`
+  and `stream`. Now `--restricted --strict-mcp-config --permission-mode dontAsk`. Test tool limits by reading
+  the stream-json tool results from a real run, not the flags.

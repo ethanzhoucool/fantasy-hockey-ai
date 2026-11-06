@@ -310,6 +310,8 @@ class EspnClient:
     # ------------------------------------------------------------ writes (only when auto_execute is on)
 
     def _post(self, payload):
+        if os.environ.get("FHOCKEY_READ_ONLY"):  # set for Claude subprocesses, whatever auto_execute says
+            raise WritesDisabled("FHOCKEY_READ_ONLY is set; refusing to write to ESPN")
         if not self.writes_enabled:
             raise WritesDisabled("auto_execute is off; refusing to write to ESPN")
         headers = self._headers({

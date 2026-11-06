@@ -185,18 +185,22 @@ to `~/.local/state/fantasy-hockey/inbox/*.json` and you get a notification.
 With `"claude_hook": true` the watcher also starts `claude -p` in the background, with the repo as its working
 directory and a prompt that says to read `docs/TRADE_PLAYBOOK.md`, inspect the events with the read-only
 commands above, run `model/trade_eval.py` / `trades/trade_scan.py`, and finish with a short recommendation,
-which is pushed to you. Limits:
+which goes to `events.log` (and to Mac or phone alerts if you have them on). Limits:
 
 - at most `claude_max_per_day` runs (default 4) per 24 hours and one per `claude_min_gap_minutes` (30)
 - never two at once (file lock), killed after `claude_timeout_minutes` (20)
-- tools are limited by `claude_args` (default: Read/Grep/Glob and the repo's own Python commands)
+- the run reads other managers' chat, so it is locked down: `claude_hook.LOCKDOWN` drops your Claude settings
+  (their allow list, auto mode, hooks) and all MCP connectors, and denies anything not allowed. `claude_args` then
+  allows Read/Grep/Glob inside the repo and only the read-only commands (`offers`, `chat`, `trade-input`,
+  `snapshot`, `status`, the trade scripts). `FHOCKEY_READ_ONLY=1` makes every ESPN write fail in that run, and
+  `--out` can only write inside `trades/`.
 - event files move to `inbox/done/` after a run, so a failing run is not retried forever
-- this service cannot accept, propose or decline trades, or send chat messages. Anything Claude does beyond a
-  recommendation depends on what you allow in `claude_args` and `claude_extra_prompt`.
+- this service cannot accept, propose or decline trades, or send chat messages
 
 ## Safety
 
-- **Dry run by default.** Writes need `auto_execute: true`; the ESPN client itself refuses to POST otherwise.
+- **Dry run by default.** Writes need `auto_execute: true`; the ESPN client itself refuses to POST otherwise, and
+  refuses whenever `FHOCKEY_READ_ONLY` is set.
 - **Limits.** The pickup and streaming rules above, 1 streaming add per day (the service's own pacing), 7 adds per week including pending
   claims. If ESPN's response is missing the add counter, the service assumes the limit is reached.
 - **Writes are never retried.** A timed-out POST may have gone through, so a failed write is reported, not repeated.

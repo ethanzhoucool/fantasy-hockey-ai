@@ -7,9 +7,11 @@ import stat
 import subprocess
 import unittest
 import urllib.parse
+from unittest import mock
 
 from fhockey import cli
-from fhockey.espn import AuthError, Auth, EspnError, TransientError, load_auth, normalize_swid, save_auth, scrub
+from fhockey.espn import (AuthError, Auth, EspnError, TransientError, WritesDisabled, load_auth, normalize_swid,
+                          save_auth, scrub)
 
 from .helpers import NOW, TEST_S2, TEST_SWID, Env
 
@@ -152,6 +154,45 @@ class SecretHandlingTest(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(os.stat(env.cfg.auth_file).st_mode), 0o600)
         finally:
             env.close()
+
+
+class ReadOnlyTest(unittest.TestCase):
+    """FHOCKEY_READ_ONLY is set for Claude subprocesses and must beat auto_execute."""
+
+    def setUp(self):
+        self.env = Env(auto_execute=True)
+
+    def tearDown(self):
+        self.env.close()
+
+    def test_client_refuses_every_write(self):
+        c = self.env.client(writes=True)
+        with mock.patch.dict(os.environ, {"FHOCKEY_READ_ONLY": "1"}):
+            for write in (lambda: c.add_free_agent(1, 2, 34), lambda: c.claim_waiver(1, 2, 34),
+                          lambda: c.set_lineup([], 34, 34)):
+                with self.assertRaises(WritesDisabled):
+                    write()
+        self.assertEqual(self.env.espn.posts, [])
+
+    def test_cli_commands_cannot_write(self):
+        with mock.patch.dict(os.environ, {"FHOCKEY_READ_ONLY": "1"}):
+            for argv in (["lineup"], ["pickups"], ["stream"], ["watch", "--once"]):
+                run_cli(self.env, argv)
+        self.assertEqual(self.env.espn.posts, [])
+
+    def test_out_stays_inside_trades_dir(self):
+        target = self.env.root / "precious.txt"
+        target.write_text("keep me")
+        with mock.patch.dict(os.environ, {"FHOCKEY_READ_ONLY": "1"}):
+            code, _, err = run_cli(self.env, ["trade-input", "--offer", "tx-offer-in", "--out", str(target)])
+            self.assertEqual(code, 1)
+            self.assertIn("read-only mode", err)
+            code, _, err = run_cli(self.env, ["snapshot", "--out", str(target)])
+            self.assertEqual(code, 1)
+            self.assertEqual(target.read_text(), "keep me")
+            self.env.cfg.trades_dir.mkdir(parents=True, exist_ok=True)
+            code, _, err = run_cli(self.env, ["snapshot", "--out", str(self.env.cfg.trades_dir / "x.txt")])
+            self.assertEqual((code, err), (0, ""))
 
 
 if __name__ == "__main__":

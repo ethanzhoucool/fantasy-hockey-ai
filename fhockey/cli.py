@@ -4,6 +4,7 @@ import builtins
 import datetime as dt
 import getpass as _getpass
 import json
+import os
 import subprocess
 import sys
 import time
@@ -48,6 +49,15 @@ def _client(cfg, deps, writes=False):
 
 def _now(deps):
     return deps.now if deps.now is not None else now_ms()
+
+
+def _out_path(cfg, path):
+    """--out for the read-only commands. A Claude run reads other managers' chat, so under FHOCKEY_READ_ONLY it can
+    only write inside trades/, never over an arbitrary file."""
+    out = Path(path).expanduser().resolve()
+    if os.environ.get("FHOCKEY_READ_ONLY") and not out.is_relative_to(Path(cfg.trades_dir).expanduser().resolve()):
+        raise ValueError(f"read-only mode: --out must be inside {cfg.trades_dir}")
+    return out
 
 
 def _mode(execute):
@@ -204,7 +214,7 @@ def cmd_uninstall(cfg, args, deps):
 def cmd_snapshot(cfg, args, deps):
     client = _client(cfg, deps)
     text, sp = tools.build_snapshot(client, fa_limit=args.fa)
-    out = Path(args.out) if args.out else cfg.trades_dir / f"league_{dt.date.today().isoformat()}.txt"
+    out = _out_path(cfg, args.out) if args.out else cfg.trades_dir / f"league_{dt.date.today().isoformat()}.txt"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text)
     print(f"wrote {out} ({text.count(chr(10)) - 2} players, period {sp})")
@@ -222,7 +232,7 @@ def cmd_trade_input(cfg, args, deps):
     text = tools.trade_input(_client(cfg, deps), cfg.team_id, _now(deps), offer_id=args.offer, partner=args.partner,
                              give=split(args.give), get=split(args.get), drops=split(args.drop))
     if args.out:
-        Path(args.out).write_text(text)
+        _out_path(cfg, args.out).write_text(text)
         print(f"wrote {args.out}; next: python3 -I model/trade_eval.py {args.out}")
     else:
         print(text, end="")

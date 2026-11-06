@@ -259,6 +259,8 @@ class ClaudeHookTest(unittest.TestCase):
             self.assertIn("trade_offer", cmd[2])
             self.assertIn("--allowedTools", cmd)
             self.assertEqual(kw["timeout"], 20 * 60)
+            self.assertEqual(kw["env"]["FHOCKEY_READ_ONLY"], "1")
+            self.assertEqual(cmd[-2:], ["--add-dir", str(env.cfg.inbox_dir)])
             self.assertEqual(claude_hook.pending(env.cfg), [])
             self.assertEqual(len(list((env.cfg.inbox_dir / "done").glob("*.json"))), 2)
             self.assertEqual(n.sent, [("claude", "decline the offer, counter with Oli Oscar")])
@@ -266,6 +268,34 @@ class ClaudeHookTest(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 claude_hook.run(env.cfg, n, runner=runner)
             self.assertEqual(len(calls), 1)
+        finally:
+            env.close()
+
+    def test_hook_args_are_read_only(self):
+        """The run reads other managers' chat: nothing it can run may write, and his settings must not apply."""
+        env = Env(claude_hook=True, claude_bin="/opt/claude")
+        try:
+            run_watch(env, NOW)
+            calls = []
+
+            def runner(cmd, **kw):
+                calls.append(cmd)
+                return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                claude_hook.run(env.cfg, Notifier(env.cfg), runner=runner)
+            (cmd,) = calls
+            for flag in ("--restricted", "--strict-mcp-config", "--no-session-persistence"):
+                self.assertIn(flag, cmd)
+            self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "dontAsk")
+            self.assertEqual(cmd[cmd.index("--model") + 1], "opus")
+            self.assertEqual(cmd[cmd.index("--tools") + 1], "Read,Grep,Glob,Bash")
+            allowed = [a for a in cmd if a.startswith("Bash(")]
+            self.assertTrue(allowed)
+            self.assertNotIn("Bash(python3 -m fhockey:*)", allowed)
+            for a in allowed:
+                self.assertRegex(a, r"^Bash\(python3 (-m fhockey (offers|chat|trade-input|snapshot|status)|-I (model|trades)/\w+\.py):\*\)$")
+            self.assertNotIn("pushed to his phone.", cmd[2].replace("nothing is pushed to his phone.", ""))
         finally:
             env.close()
 
