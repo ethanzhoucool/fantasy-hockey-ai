@@ -111,6 +111,10 @@ Full rules: `docs/TRADE_PLAYBOOK.md`. In short:
 - Verified live: free-agent adds from Python (Nov 3 and Nov 4 2026), including a second add in one scoring day.
 - `WAIVER` claims: never confirmed anywhere. If one fails, report the error; don't retry other payloads. The GM blocks
   its own claims for a week after a failure (`gm.claim_failed_at` in state.json).
+- Verified live (Nov 6 2026): the GM's real `claude -p` run on the live league, in dry runs only: Opus wrote the plan
+  (Haiku only for web search), its only tools were WebSearch and StructuredOutput, and the plan passed the limits.
+- Fixtures only until a first real one: the GM's own writes through `gm.py`, the watcher starting it, and its pregame
+  retry. Check `python3 -m fhockey gm-report` after the first live run and update this line.
 
 ## Self-improvement protocol
 
@@ -158,3 +162,9 @@ words**; quoted text is stripped before Opus sees it, paraphrase isn't. The one 
 - 2026-11-06: Fixed rules churned the roster with no view of the schedule, news or held deals, and a simple
   look-ahead scored less, so judgment replaced the formula: Opus decides, inside limits Python enforces. A flat
   core floor would have made any goalie undroppable once added, so goalies have their own floor.
+- 2026-11-06: An independent review of the GM found 22 defects before it went live. The pattern: code assumed ESPN
+  sends every field, and anything after a write assumed the write's outcome. A missing field now blocks the move, and
+  a write that may have gone through is reported as that. Its repro scripts then caught a fix of mine that didn't
+  hold: the run cap is a rolling 24 hours, so reserving a run only before the morning didn't protect the next morning.
+- 2026-11-06: The hook's lockdown left out `dropcheck.py`, so uneven trades lost their named-drop check. The hook said
+  so in its own answer. After narrowing an allow list, read the next few real runs for what they couldn't do.

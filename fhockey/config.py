@@ -80,6 +80,7 @@ DEFAULTS = {
         "Bash(python3 -I model/trade_eval.py:*)",
         "Bash(python3 -I trades/trade_scan.py:*)",
         "Bash(python3 -I trades/robust.py:*)",
+        "Bash(python3 -I trades/dropcheck.py:*)",
     ],
     # the Opus GM (fhockey/gm.py): while enabled, Opus makes every add and drop instead of the `rules` and `stream`
     # passes. The numbers below are hard limits Python enforces whatever Opus says.

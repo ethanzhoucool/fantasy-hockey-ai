@@ -292,6 +292,7 @@ class ClaudeHookTest(unittest.TestCase):
             self.assertEqual(cmd[cmd.index("--tools") + 1], "Read,Grep,Glob,Bash")
             allowed = [a for a in cmd if a.startswith("Bash(")]
             self.assertTrue(allowed)
+            self.assertIn("Bash(python3 -I trades/dropcheck.py:*)", allowed)  # uneven deals can't be vetted without it
             self.assertNotIn("Bash(python3 -m fhockey:*)", allowed)
             for a in allowed:
                 self.assertRegex(a, r"^Bash\(python3 (-m fhockey (offers|chat|trade-input|snapshot|status)|-I (model|trades)/\w+\.py):\*\)$")
