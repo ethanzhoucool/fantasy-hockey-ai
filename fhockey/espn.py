@@ -8,9 +8,9 @@ Reads:  https://lm-api-reads.fantasy.espn.com/apis/v3/games/fhl/seasons/<season>
 Writes: https://lm-api-writes.fantasy.espn.com/apis/v3/games/fhl/seasons/<season>/segments/0/leagues/<id>/transactions/
 The API is undocumented and can change without notice.
 """
+import http.client
 import json
 import os
-import socket
 import ssl
 import time
 import urllib.error
@@ -171,7 +171,7 @@ def urllib_transport(method, url, headers, body=None, timeout=25):
             return e.code, e.read()
         finally:
             e.close()
-    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
+    except (OSError, http.client.HTTPException) as e:  # URLError, timeouts, TLS, resets, a response cut off midway
         raise TransientError(f"network error: {type(e).__name__}") from None
 
 

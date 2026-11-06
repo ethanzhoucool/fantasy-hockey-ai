@@ -263,12 +263,14 @@ class Watcher:
             self.note("start", f"fantasy watcher started ({'LIVE: will write to ESPN' if execute else 'dry run'})")
 
         # 1. Ethan's roster: injuries and roster changes
+        gm_on = bool(cfg["gm"]["enabled"])
         cur_roster = roster_map(view.roster_entries)
         prev = st.get("roster")
-        starters_out = []
         if prev is not None:
-            starters_out = [r["n"] for k, r in cur_roster.items() if k in prev and r["inj"] in OUT
-                            and prev[k]["inj"] not in OUT and r["slot"] in STARTING]
+            if gm_on:
+                for k, r in cur_roster.items():
+                    if k in prev and r["inj"] in OUT and prev[k]["inj"] not in OUT and r["slot"] in STARTING:
+                        gm.note_event(st, sp, f"{r['n']} is out")
             added, removed, inj = diff_roster(prev, cur_roster)
             if inj:
                 self.note("injury", "; ".join(f"{n}: {INJ_SHORT.get(a, a)} -> {INJ_SHORT.get(b, b)}" for n, a, b in inj),
@@ -327,6 +329,8 @@ class Watcher:
             names = ", ".join(watched.get(str(c), {}).get("n", str(c)) for c in clears)
             self.note("waivers", f"cleared to free agency: {names}")
             trigger += clears
+        if gm_on and trigger:
+            gm.note_available(st, trigger)
 
         # 2c. trade offers
         current = find_offers(txs, team)
@@ -399,7 +403,6 @@ class Watcher:
                 view = LeagueView(self.client, cfg, now, st, proj=view.proj, schedule=view.schedule).load()
 
         # 5b. pickups: right after a drop / waiver clear, and once each morning. With the GM on, Opus decides (step 8).
-        gm_on = bool(cfg["gm"]["enabled"])
         morning_due = local.hour >= cfg["morning_hour"] and not daily.get("morning")
         if gm_on:
             if drop_lines and cfg["notify_all_drops"]:
@@ -473,13 +476,13 @@ class Watcher:
 
         # 8. Opus GM (opt-in): morning, a retry before the first game if that failed, and events worth waking it for
         if gm_on:
-            events = [f"{n} is out" for n in starters_out]
-            worth = gm.worth_a_look(view, trigger) if trigger else []
-            if worth:
-                events.append("available: " + ", ".join(worth))
-            result = gm.watch_step(cfg, st, view, daily, now, morning_due, pregame_due, events, self.spawn, self.log)
+            result = gm.watch_step(cfg, st, view, daily, now, morning_due, pregame_due, self.spawn, self.log)
             if result != "nothing due":
                 self.log.info("gm: %s", result)
+            if result == "claude binary not found" and not daily.get("gm_no_claude"):
+                daily["gm_no_claude"] = True
+                self.note("gm", "the Opus GM can't run: claude binary not found. No adds or drops until that is fixed; "
+                                "lineups continue.", priority="high")
 
         # 9. Claude hook (opt-in)
         reason = claude_hook.maybe_dispatch(cfg, st, now, self.spawn, self.log)

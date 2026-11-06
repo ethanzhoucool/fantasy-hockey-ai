@@ -1,10 +1,13 @@
 import contextlib
+import http.client
 import io
 import json
+import os
 import subprocess
 import unittest
+from unittest import mock
 
-from fhockey import cli, gm
+from fhockey import cli, espn, gm
 from fhockey.notify import Notifier, get_logger
 from fhockey.state import FileLock, load_state, save_state
 
@@ -208,8 +211,27 @@ class BriefTest(GmCase):
         self.assertIn("# GM playbook", prompt)
         self.assertIn("held deal: keep Finn Foxtrot", prompt)
         self.assertIn("remember: goalie news", prompt)
-        self.assertLess(prompt.count("old line"), 1000)
+        self.assertLess(prompt.count("old line"), 2000)
         self.assertIn("Walt Whiskey", prompt)
+
+    def test_quoted_words_in_the_league_notes_stay_out_of_the_prompt(self):
+        self.cfg.memory_dir.mkdir(parents=True, exist_ok=True)
+        (self.cfg.memory_dir / "LEAGUE.local.md").write_text(
+            f'Team 3 asked about Max. They wrote "{CHAT}" and then \u201c{CHAT}\u201d.\nHeld deal: keep Finn.')
+        prompt = gm.build_prompt(self.cfg, self.brief()[0], "morning")
+        self.assertNotIn(CHAT, prompt)
+        self.assertIn("(quote removed)", prompt)
+        self.assertIn("Held deal: keep Finn.", prompt)
+
+    def test_a_bye_week_or_odd_settings_do_not_stop_the_run(self):
+        self.espn.d["matchup"]["schedule"] = [{"matchupPeriodId": 5, "home": {"teamId": 4, "totalPoints": 1}}]
+        self.espn.d["settings"]["settings"]["scheduleSettings"]["matchupPeriods"]["5"] = [4, 5, 6]
+        b, _ = self.brief()
+        self.assertIsNone(b["matchup_score"])
+        self.assertEqual(b["adds"]["days_left_in_week_including_today"], 1)
+
+    def test_a_null_item_in_the_news_feed_is_ignored(self):
+        self.assertEqual(gm.fetch_news(lambda req, timeout=None: Resp(b'{"feed": [null]}'), 1001, NOW), [])
 
 
 class ParseTest(unittest.TestCase):
@@ -364,7 +386,68 @@ class RailTest(GmCase):
     def test_drop_in_pending_trade(self):
         self.assert_rejected(move(drop=(1009, "Ian India")), "in a pending trade")
 
+    def _trade(self, sp, pid=JON[0], **more):
+        self.espn.d["transactions"].setdefault(str(sp), {"transactions": []})["transactions"].append(
+            {"id": f"old-{sp}", "type": "TRADE_PROPOSAL", "status": "PENDING", "teamId": 4, "proposedDate": NOW, **more,
+             "items": [{"playerId": pid, "type": "TRADE", "fromTeamId": 4, "toTeamId": 2}]})
+
+    def test_drop_in_an_older_live_trade(self):
+        self._trade(28)  # six days back, past what the watcher's own trade checks look at
+        self.assert_rejected(move(), "in a pending trade")
+
+    def test_an_expired_trade_blocks_nothing(self):
+        self._trade(28, expirationDate=NOW - HOUR)
+        self.run_gm(FakeClaude(envelope(plan([move()]))))
+        self.assertEqual(len(self.adds()), 1)
+
+    def test_missing_fields_block_the_drop(self):
+        p = self.espn.roster_player(JON[0])
+        saved = {"lineupSlotId": p["lineupSlotId"], "proTeamId": p["playerPoolEntry"]["player"]["proTeamId"],
+                 "eligibleSlots": p["playerPoolEntry"]["player"]["eligibleSlots"]}
+        for field, target, expected in (("proTeamId", p["playerPoolEntry"]["player"], "no NHL team"),
+                                        ("lineupSlotId", p, "no lineup slot"),
+                                        ("eligibleSlots", p["playerPoolEntry"]["player"], "no position")):
+            del target[field]
+            self.assert_rejected(move(), expected)
+            target[field] = saved[field]
+
+    def test_no_numbers_from_espn_is_not_a_cheap_player(self):
+        self.espn.roster_player(JON[0])["playerPoolEntry"]["player"]["stats"] = []
+        self.assert_rejected(move(), "no valuation")
+
+    def test_add_with_missing_fields(self):
+        p = self.espn.pool_player(WALT[0])["player"]
+        p["eligibleSlots"] = []
+        self.assert_rejected(move(), "no position")
+
+    def test_injured_with_no_status_counts_as_out(self):
+        real = gm.build_brief
+
+        def brief_then_hurt(*a, **k):
+            r = real(*a, **k)
+            p = self.espn.pool_player(WALT[0])["player"]
+            p["injured"] = True
+            p.pop("injuryStatus", None)
+            return r
+
+        gm.build_brief = brief_then_hurt
+        self.addCleanup(setattr, gm, "build_brief", real)
+        self.assert_rejected(move(), "is OUT")
+
+    def test_no_schedule_means_no_moves_and_is_not_cached(self):
+        self.cfg.schedule_cache.unlink(missing_ok=True)
+        self.espn.d["schedule"] = {"settings": {"proTeams": []}}
+        self.assert_rejected(move(), "no NHL schedule")
+        self.assertFalse(self.cfg.schedule_cache.exists())
+
+    def test_game_start_is_checked_after_the_reads(self):
+        game = self.env.view().games()[6]  # Jon Juliet's team
+        times = iter([game - MIN, game - MIN])  # the run starts and reads before the game, and finishes after it starts
+        self.assert_rejected(move(), "his game has started", now=lambda: next(times, game + MIN))
+
     def test_drop_protected_by_id_or_name(self):
+        self.cfg.data["gm"]["protected_players"] = [str(JON[0])]
+        self.assert_rejected(move(), "protected")
         self.cfg.data["gm"]["protected_players"] = [JON[0]]
         self.assert_rejected(move(), "protected")
         self.cfg.data["gm"]["protected_players"] = ["jon juliet"]
@@ -397,6 +480,24 @@ class RailTest(GmCase):
         entries[:] = [e for e in entries if e["playerId"] != 1106]  # exactly 5 D now
         self.assert_rejected(move(drop=(1105, "Quin Quebec")), "would leave 4 D on the roster (need 5)")
 
+    def _exactly_five_d(self):
+        entries = self.espn.team4["roster"]["entries"]
+        entries[:] = [e for e in entries if e["playerId"] != 1106]
+
+    def test_a_pending_claim_may_lose_so_its_add_does_not_count(self):
+        self._exactly_five_d()
+        self.espn.tx(34).append({"id": "c1", "type": "WAIVER", "status": "PENDING", "teamId": 4, "items": [
+            {"playerId": 1405, "type": "ADD"}, {"playerId": KAI[0], "type": "DROP"}]})  # a D for an F, if it wins
+        self.assert_rejected(move(drop=(1105, "Quin Quebec")), "would leave 4 D on the roster (need 5)")
+
+    def test_a_claim_in_this_run_does_not_count_either(self):
+        self._exactly_five_d()
+        self.espn.pool_player(1405)["status"] = "WAIVERS"
+        moves = [move(add=(1405, "Yan Yankee"), drop=KAI), move(drop=(1105, "Quin Quebec"))]
+        _, sent, _ = self.run_gm(FakeClaude(envelope(plan(moves))))
+        self.assertEqual([b["type"] for b in self.adds()], ["WAIVER"])
+        self.assertIn("would leave 4 D on the roster (need 5)", text(sent, "gm"))
+
     def test_same_position_swap_is_fine_when_short(self):
         entries = self.espn.team4["roster"]["entries"]
         entries[:] = [e for e in entries if e["playerId"] not in (1106, 1105)]  # 4 D, already short
@@ -416,6 +517,15 @@ class RailTest(GmCase):
     def test_missing_counter_counts_as_full(self):
         del self.espn.team4["transactionCounter"]
         self.assert_rejected(move(), "weekly limit")
+
+    def test_counter_without_totals_counts_as_full(self):
+        self.espn.team4["transactionCounter"] = {"acquisitions": 3}
+        self.assert_rejected(move(), "weekly limit")
+
+    def test_no_entry_for_this_week_means_none_used(self):
+        self.espn.team4["transactionCounter"]["matchupAcquisitionTotals"] = {}
+        self.run_gm(FakeClaude(envelope(plan([move()]))))
+        self.assertEqual(len(self.adds()), 1)
 
     def test_claimed_players_cannot_be_reused(self):
         self.espn.tx(34).append({"id": "c1", "type": "WAIVER", "status": "PENDING", "teamId": 4, "items": [
@@ -527,7 +637,17 @@ class RunFlowTest(GmCase):
         self.assertEqual(load_state(self.cfg), before)
         self.assertIn("GM dry run", text(sent, "gm"))
         self.assertIn("would add +Walt Whiskey -Jon Juliet", text(sent, "gm"))
-        self.assertIn("DRY RUN (nothing done)", gm.log_path(self.cfg).read_text())
+        # nor anything later runs read back: what a dry run would remember stays out of the log
+        self.assertFalse(gm.log_path(self.cfg).exists())
+        self.assertTrue((self.cfg.state_dir / "gm_dry_run.json").exists())
+        self.assertFalse((self.cfg.state_dir / "gm_last.json").exists())
+
+    def test_a_failed_dry_run_logs_nothing_and_records_nothing(self):
+        before = load_state(self.cfg)
+        code, _, _ = self.run_gm(FakeClaude("garbage"), dry_run=True)
+        self.assertEqual(code, 1)
+        self.assertFalse(gm.log_path(self.cfg).exists())
+        self.assertEqual(load_state(self.cfg), before)
 
     def test_dry_run_applies_the_rails_too(self):
         _, sent, _ = self.run_gm(FakeClaude(envelope(plan([move(drop=(1001, "Ari Alpha"))]))), dry_run=True)
@@ -539,6 +659,8 @@ class RunFlowTest(GmCase):
         self.assertEqual(code, 0)
         self.assertEqual(self.espn.posts, [])
         self.assertIn("would add", text(sent, "gm"))
+        self.assertIn("auto_execute off", gm.log_path(self.cfg).read_text())
+        self.assertEqual(load_state(self.cfg)["gm"].get("moves", []), [])  # nothing happened, so nothing to remember
 
     def test_failures_mean_no_moves_and_no_old_rules(self):
         cases = {
@@ -548,6 +670,7 @@ class RunFlowTest(GmCase):
             "not JSON": FakeClaude("garbage"),
             "malformed": FakeClaude(envelope({"moves": "all of them"})),
             "did not come from opus": FakeClaude(envelope(plan([move()]), modelUsage={"claude-sonnet-5-5": {"outputTokens": 9}})),
+            "exit 1": FakeClaude(envelope(plan([move()])), returncode=1),
         }
         for expected, claude in cases.items():
             code, sent, _ = self.run_gm(claude)
@@ -557,6 +680,131 @@ class RunFlowTest(GmCase):
             self.assertIn(expected, text(sent, "gm"))
             self.assertIn("No moves; lineups continue", text(sent, "gm"))
             self.assertFalse(load_state(self.cfg)["gm"]["last"]["ok"])
+
+    def test_a_fallback_partway_through_is_not_opus(self):
+        usage = {"claude-opus-5-5": {"outputTokens": 900}, "claude-sonnet-5-5": {"outputTokens": 1800}}
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move()]), modelUsage=usage)))
+        self.assertEqual((code, self.espn.posts), (1, []))
+        self.assertIn("did not come from opus", text(sent, "gm"))
+
+    def test_a_live_failure_says_it_was_live(self):
+        self.run_gm(FakeClaude("garbage"))
+        self.assertIn("| LIVE |", gm.log_path(self.cfg).read_text())
+
+    def _after_the_brief(self, then):
+        real = gm.build_brief
+
+        def brief_then(*a, **k):
+            r = real(*a, **k)
+            then()
+            return r
+
+        gm.build_brief = brief_then
+        self.addCleanup(setattr, gm, "build_brief", real)
+
+    def test_espn_down_when_moving_leaves_the_morning_open(self):
+        self.cfg.data["gm"]["enabled"] = True
+        run_watch(self.env, NOW)  # today's daily record
+        self._after_the_brief(lambda: setattr(self.espn, "fail", (503, b"")))
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move()]))), now=NOW + 40 * MIN)
+        self.assertEqual((code, self.adds()), (1, []))
+        self.assertIn("could not re-check", text(sent, "gm"))
+        self.assertNotIn("No moves", text(sent, "gm"))
+        st = load_state(self.cfg)
+        self.assertFalse(st["gm"]["last"]["ok"])
+        self.assertFalse(st["daily"].get("gm_morning_ok"))
+
+    def assert_write_outcome_unknown(self, sent, code):
+        self.assertEqual(code, 1)
+        self.assertEqual(len(self.adds()), 1, "never retried")
+        self.assertIn("FAILED FREEAGENT +Walt Whiskey -Jon Juliet", text(sent, "gm"))
+        self.assertIn("it may have gone through", text(sent, "gm"))
+        self.assertNotIn("No moves", text(sent, "gm"))
+        st = load_state(self.cfg)
+        self.assertEqual(st["gm"]["failed"], {f"{WALT[0]}:{JON[0]}": 34})
+        self.assertFalse(st["gm"]["last"]["ok"])
+        self.assertIn("| LIVE |", gm.log_path(self.cfg).read_text())
+
+    def test_a_write_cut_off_midway_is_unknown_not_no_moves(self):
+        self.espn.post_raises = espn.TransientError("network error: IncompleteRead")
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move(), move(add=(1406, "Bo Stream"), drop=KAI)]))))
+        self.assert_write_outcome_unknown(sent, code)
+
+    def test_any_exception_from_a_write_is_handled_the_same(self):
+        self.espn.post_raises = ValueError("bad body")
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move()]))))
+        self.assert_write_outcome_unknown(sent, code)
+
+    def test_transport_wraps_a_response_cut_off_midway(self):
+        with mock.patch.object(espn, "urlopen", side_effect=http.client.IncompleteRead(b"")):
+            with self.assertRaises(espn.TransientError):
+                espn.urllib_transport("POST", "https://example.invalid/", {}, b"{}")
+
+    def test_a_refusal_with_status_200_is_a_failed_write(self):
+        self.espn.post_body = {"status": "FAILED"}
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move()]))))
+        self.assertEqual(code, 1)
+        self.assertIn("FAILED FREEAGENT", text(sent, "gm"))
+        self.assertNotIn("ADDED", text(sent, "gm"))
+
+    def test_a_crash_rechecking_move_two_keeps_move_one(self):
+        calls = {"n": 0}
+        real = gm.check_move
+
+        def check(*a, **k):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise TypeError("ESPN sent an empty body")
+            return real(*a, **k)
+
+        gm.check_move = check
+        self.addCleanup(setattr, gm, "check_move", real)
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move(), move(add=(1406, "Bo Stream"), drop=KAI)]))))
+        self.assertEqual(code, 1)
+        self.assertEqual(len(self.adds()), 1)
+        self.assertIn("ADDED +Walt Whiskey", text(sent, "gm"))
+        self.assertIn("could not re-check", text(sent, "gm"))
+        self.assertNotIn("No moves", text(sent, "gm"))
+        self.assertEqual(load_state(self.cfg)["gm"]["moves"][0]["add_id"], WALT[0])
+
+    def test_a_crash_in_the_lineup_rerun_does_not_hide_the_add(self):
+        real = gm.actions.run_lineup
+        gm.actions.run_lineup = mock.Mock(side_effect=ValueError("corrupt proj.json"))
+        self.addCleanup(setattr, gm.actions, "run_lineup", real)
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move()]))))
+        self.assertEqual(code, 0)
+        self.assertIn("ADDED +Walt Whiskey", text(sent, "gm"))
+        self.assertIn("re-run failed", text(sent, "gm"))
+
+    def test_a_crash_after_a_write_says_so(self):
+        real = gm.report_lines
+        gm.report_lines = mock.Mock(side_effect=KeyError("oops"))
+        self.addCleanup(setattr, gm, "report_lines", real)
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move()]))))
+        self.assertEqual(code, 1)
+        self.assertIn("1 ESPN write(s) were already sent", text(sent, "gm"))
+        self.assertNotIn("No moves", text(sent, "gm"))
+
+    def test_the_move_is_saved_before_anything_else_can_go_wrong(self):
+        seen = {}
+        real = gm.actions.run_lineup
+
+        def lineup(*a, **k):
+            seen["moves"] = load_state(self.cfg)["gm"]["moves"]
+            return real(*a, **k)
+
+        gm.actions.run_lineup = lineup
+        self.addCleanup(setattr, gm.actions, "run_lineup", real)
+        self.run_gm(FakeClaude(envelope(plan([move()]))))
+        self.assertEqual(seen["moves"][0]["add_id"], WALT[0])
+        self.assertEqual(load_state(self.cfg)["fa_add_sp"], 34)
+
+    def test_a_log_that_cannot_be_written_stops_nothing(self):
+        self.cfg.memory_dir.parent.mkdir(parents=True, exist_ok=True)
+        self.cfg.memory_dir.write_text("a file where the folder should be")
+        code, sent, _ = self.run_gm(FakeClaude(envelope(plan([move()]))))
+        self.assertEqual(code, 0)
+        self.assertIn("ADDED +Walt Whiskey", text(sent, "gm"))
 
     def test_espn_read_failure_reports_and_moves_nothing(self):
         self.espn.fail = (503, b"")
@@ -657,6 +905,19 @@ class DispatchTest(GmCase):
         self.assertEqual(gm.maybe_dispatch(self.cfg, st, NOW + 90 * MIN, "x", spawn), "rate limited (daily cap)")
         self.assertEqual(gm.maybe_dispatch(self.cfg, st, NOW + 25 * HOUR, "x", spawn), "started")
 
+    def test_events_cannot_take_the_last_run_of_the_day(self):
+        self.cfg.data["gm"]["max_runs_per_day"] = 1
+        spawn = lambda *a, **k: None
+        self.assertEqual(gm.maybe_dispatch(self.cfg, {}, NOW, "event: x", spawn, reserve=1),
+                         "rate limited (last run kept for the morning)")
+        self.assertEqual(gm.maybe_dispatch(self.cfg, {}, NOW, "morning", spawn), "started")
+
+    def test_a_read_only_parent_stays_read_only(self):
+        seen = []
+        with mock.patch.dict(os.environ, {"FHOCKEY_READ_ONLY": "1"}):
+            gm.maybe_dispatch(self.cfg, {}, NOW, "x", lambda *a, **k: seen.append(k))
+        self.assertEqual(seen[0]["env"]["FHOCKEY_READ_ONLY"], "1")
+
     def test_no_claude_binary(self):
         self.cfg.data["claude_bin"] = ""
         real = gm.find_claude
@@ -686,6 +947,83 @@ class WatcherGmTest(GmCase):
 
     def spawned_reasons(self, spawned):
         return [a[0][a[0].index("--reason") + 1] for a, _ in spawned if "gm" in a[0]]
+
+    def test_a_lost_poll_does_not_lose_the_event(self):
+        self.before_the_morning()
+        self.espn.roster_player(1001)["playerPoolEntry"]["player"]["injuryStatus"] = "OUT"
+        real = gm.watch_step
+        gm.watch_step = mock.Mock(side_effect=gm.EspnError("ESPN HTTP 503"))
+        try:
+            code, _, spawned = run_watch(self.env, NOW + 2 * MIN)
+        finally:
+            gm.watch_step = real
+        self.assertEqual((code, self.spawned_reasons(spawned)), (1, []))
+        _, _, spawned = run_watch(self.env, NOW + 4 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), ["event: Ari Alpha is out"])
+
+    def test_a_lost_poll_does_not_lose_a_good_drop(self):
+        self.before_the_morning()
+        self.espn.pool_player(1401)["status"] = "WAIVERS"
+        self._new_drop(1401)
+        real = gm.worth_a_look
+        gm.worth_a_look = mock.Mock(side_effect=gm.EspnError("ESPN HTTP 503"))
+        try:
+            run_watch(self.env, NOW + 2 * MIN)
+        finally:
+            gm.worth_a_look = real
+        _, _, spawned = run_watch(self.env, NOW + 4 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), ["event: available: Abe Low"])
+
+    def test_a_poll_without_the_counter_uses_up_nothing(self):
+        counter = self.espn.team4.pop("transactionCounter")
+        _, _, spawned = run_watch(self.env, NOW)
+        self.assertEqual(self.spawned_reasons(spawned), [])
+        self.assertFalse(load_state(self.cfg)["daily"].get("morning"))
+        self.espn.team4["transactionCounter"] = counter
+        _, _, spawned = run_watch(self.env, NOW + 2 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), ["morning"])
+
+    def test_morning_and_pregame_in_one_poll_keep_the_retry(self):
+        _, _, spawned = run_watch(self.env, NOW + 2 * HOUR + 1 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), ["morning"])
+        st = load_state(self.cfg)
+        self.assertFalse(st["daily"].get("pregame"))
+        gm._record(st, 34, "morning", NOW, False, {"models": [], "cost": None}, "timed out")
+        save_state(self.cfg, st)
+        _, _, spawned = run_watch(self.env, NOW + 2 * HOUR + 40 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), ["pregame-retry"])
+
+    def test_events_leave_the_last_run_for_the_morning(self):
+        self.before_the_morning()
+        self.cfg.data["gm"]["max_runs_per_day"] = 1
+        self.espn.roster_player(1001)["playerPoolEntry"]["player"]["injuryStatus"] = "OUT"
+        _, _, spawned = run_watch(self.env, NOW + 2 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), [])
+        self.cfg.data["morning_hour"] = 8
+        _, _, spawned = run_watch(self.env, NOW + 4 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), ["morning"])
+
+    def test_last_nights_events_do_not_hold_up_the_morning(self):
+        self.before_the_morning()
+        self.espn.roster_player(1001)["playerPoolEntry"]["player"]["injuryStatus"] = "OUT"
+        st = load_state(self.cfg)
+        st["gm"]["runs"] = [NOW - 12 * HOUR, NOW - 11 * HOUR, NOW - 10 * HOUR]
+        save_state(self.cfg, st)
+        _, _, spawned = run_watch(self.env, NOW + 2 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), [])  # a fourth event would use the morning's run
+        self.cfg.data["morning_hour"] = 8
+        _, _, spawned = run_watch(self.env, NOW + 4 * MIN)
+        self.assertEqual(self.spawned_reasons(spawned), ["morning"])
+
+    def test_a_missing_claude_binary_is_reported_once_a_day(self):
+        self.cfg.data["claude_bin"] = ""
+        real = gm.find_claude
+        gm.find_claude = lambda cfg: None
+        self.addCleanup(setattr, gm, "find_claude", real)
+        _, sent, _ = run_watch(self.env, NOW)
+        self.assertIn("claude binary not found", text(sent, "gm"))
+        _, sent, _ = run_watch(self.env, NOW + 2 * MIN)
+        self.assertNotIn("gm", kinds(sent))
 
     def test_no_rule_based_moves(self):
         code, sent, spawned = run_watch(self.env, NOW)

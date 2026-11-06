@@ -33,6 +33,7 @@ class FakeESPN:
         self.calls = []
         self.post_status = 200
         self.post_body = {"status": "EXECUTED"}
+        self.post_raises = None  # raised for every POST when set: the outcome of that write is unknown
         self.fail = None  # (status, body) returned for every GET when set
 
     # convenience accessors for tests that tweak data
@@ -69,6 +70,8 @@ class FakeESPN:
         self.calls.append({"method": method, "url": url, "views": views, "query": q, "headers": dict(headers),
                            "body": json.loads(body) if body else None})
         if method == "POST":
+            if self.post_raises:
+                raise self.post_raises
             return self.post_status, json.dumps(self.post_body).encode()
         if self.fail:
             return self.fail

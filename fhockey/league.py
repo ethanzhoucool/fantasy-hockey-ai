@@ -71,7 +71,8 @@ class Schedule:
         if d and d.get("season") == cfg.season and 0 <= now_ms - d.get("fetched", 0) < max_age_ms:
             return cls(d.get("games"), d.get("abbrev"), d.get("fetched", 0))
         s = cls.from_espn(client.pro_schedule(), now_ms)
-        write_json(cfg.schedule_cache, dict(s.to_json(), season=cfg.season))
+        if s.games:  # an empty answer must not stick for 20 hours: without game times nobody looks locked
+            write_json(cfg.schedule_cache, dict(s.to_json(), season=cfg.season))
         return s
 
 
@@ -233,21 +234,26 @@ class LeagueView:
             out.append(t)
         return out
 
-    def pending_trade_ids(self):
-        return {i["playerId"] for t in self.pending_trades() for i in t.get("items") or [] if "playerId" in i}
+    def pending_trade_ids(self, back=3):
+        return {i["playerId"] for t in self.pending_trades(back) for i in t.get("items") or [] if "playerId" in i}
+
+    def add_counter(self):
+        """Acquisitions per matchup period, or None if ESPN left the counter or the matchup period out."""
+        counter = self.my_team.get("transactionCounter")
+        totals = counter.get("matchupAcquisitionTotals") if isinstance(counter, dict) else None
+        return totals if self.mp and isinstance(totals, dict) else None
 
     def weekly_used(self):
-        """Acquisitions this matchup period. If ESPN leaves out the counter or the matchup period, assume the
-        limit is reached: no add is better than an add over the limit."""
-        counter = self.my_team.get("transactionCounter")
-        if not self.mp or not isinstance(counter, dict):
+        """Acquisitions this matchup period. Without the counter, assume the limit is reached: no add is better
+        than an add over the limit."""
+        totals = self.add_counter()
+        if totals is None:
             return int(self.cfg["rules"]["weekly_add_limit"])
-        totals = counter.get("matchupAcquisitionTotals") or {}
         return int(totals.get(str(self.mp), totals.get(self.mp, 0)) or 0)
 
-    def budget(self):
+    def budget(self, trade_back=3):
         return Budget(self.weekly_used(), self.pending_claims(), self.fa_adds_this_period(),
-                      self.pending_trade_ids(), self.cfg["rules"]["weekly_add_limit"])
+                      self.pending_trade_ids(trade_back), self.cfg["rules"]["weekly_add_limit"])
 
     # ---- players
     def prep_entry(self, e, games=None):

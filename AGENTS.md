@@ -124,8 +124,10 @@ At the end of any session that learned something durable:
 
 The `claude -p` hook stays read-only on purpose: it reads other managers' chat, and a write tool would let a
 crafted message plant instructions in memory. Memory is updated only in interactive or scheduled sessions,
-where the owner can see the changes. The GM is the reverse: it can cause moves, so it never sees what other managers
-write. Keep those two apart. The one exception to who writes memory is `GM_LOG.local.md`, which Python appends to.
+where the owner can see the changes. The GM is the reverse: it can cause moves, so it must not see what other managers
+write. Keep those two apart. Its prompt includes `LEAGUE.local.md`, so **summarize managers' messages there in your own
+words**; quoted text is stripped before Opus sees it, paraphrase isn't. The one exception to who writes memory is
+`GM_LOG.local.md`, which Python appends to.
 
 ## Lessons log
 

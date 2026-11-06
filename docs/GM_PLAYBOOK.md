@@ -60,7 +60,8 @@ A move that breaks one is rejected and reported, and the rest of the plan still 
 - The add must be in `available`, still a free agent or on waivers, and not OUT, on IR or suspended.
 - The drop must be on the roster, not in the IR slot, with no game started today, not in a pending trade or claim,
   and not protected. The median of his three values must be under the core floor (`limits`), so stars can't be cut.
-- After the move the roster still has at least 9 F, 5 D and 2 G outside the IR slot.
+- After the move the roster still has at least 9 F, 5 D and 2 G outside the IR slot. A pending claim's drop counts
+  and its add doesn't, since it can lose in waiver order.
 - The weekly add limit, including pending claims, and the per-run and per-day move limits in `limits`.
 - Ids and names must match, so a typo can't drop the wrong player.
 

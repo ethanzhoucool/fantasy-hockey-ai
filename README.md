@@ -203,7 +203,8 @@ and messages still need you; Opus can only leave a note.
 (Python appends every decision, so later runs remember) and a brief of live data: matchup score, adds left, open
 slots per day for two weeks, your roster and the top available players with three valuations, games, ownership and
 ESPN news, pending trades, and your recent moves with the points scored since. **Chat, DMs and team names are never
-in it**, because other managers write those and this run can cause moves.
+in it**, because other managers write those and this run can cause moves. The league notes are written by sessions
+with you and can describe what managers said, so anything in quotation marks is removed before Opus sees them.
 
 **What it can do.** `claude -p` with WebSearch only, none of your Claude settings or connectors, from an empty
 directory. It answers with a JSON plan. It has no way to touch ESPN or a file.
@@ -212,11 +213,11 @@ directory. It answers with a JSON plan. It has no way to touch ESPN or a file.
 
 - the add is in the brief, is still a free agent or on waivers, and isn't OUT, on IR or suspended
 - the drop is in the brief and on your roster, not in the IR slot, with no game started, not in a pending trade or
-  claim, and not in `protected_players`
+  claim, and not in `protected_players`. A field ESPN left out blocks the move instead of reading as fine.
 - the median of the drop's three valuations is under `core_floor` (2.05; goalies `core_floor_goalie`, 3.5), so stars
   can't be cut. Goalies score on a higher scale, so protect your real starters by name.
 - ids and names match
-- at least 9 F, 5 D, 2 G remain outside the IR slot
+- at least 9 F, 5 D, 2 G remain outside the IR slot, even if a pending claim loses in waiver order
 - 7 adds a week including pending claims, `max_moves_per_run` (2), `max_moves_per_day` (3)
 - the plan is under `max_plan_age_minutes` (60) old
 - `FREEAGENT` players get an add, `WAIVERS` players a claim. Writes are never retried, and a failed claim blocks claims
@@ -227,7 +228,7 @@ fallback to the old rules. Lineups continue, and the failure is reported.
 
 **Where to see it.** `python3 -m fhockey gm-report`, or `events.log` (kind `gm`). It runs on your Claude plan and only
 while your Mac is awake. Try it first with `python3 -m fhockey gm --dry-run`, which asks Opus and checks the plan but
-writes nothing and changes no state.
+writes nothing to ESPN, `state.json` or the decision log (it keeps its answer in `gm_dry_run.json`).
 
 ## Claude hook (opt-in, off by default)
 
